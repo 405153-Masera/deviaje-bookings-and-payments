@@ -1,0 +1,31 @@
+package masera.deviajebookingsandpayments.dtos.bookings;
+
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBookingRequestDto;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.CreateHotelBookingRequestDto;
+
+/**
+ * DTO para crear una reserva de paquete.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CreatePackageBookingRequestDto {
+
+  @NotNull(message = "El ID del cliente es obligatorio")
+  private Long clientId;
+
+  private Long agentId;
+
+  private Long branchId;
+
+  private CreateFlightBookingRequestDto flightBooking;
+
+  private CreateHotelBookingRequestDto hotelBooking;
+
+}

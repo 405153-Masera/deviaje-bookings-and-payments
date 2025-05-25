@@ -1,0 +1,20 @@
+package masera.deviajebookingsandpayments.dtos.bookings.hotels;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class HolderDto {
+
+  @NotBlank(message = "El nombre del titular es obligatorio")
+  private String name;
+
+  @NotBlank(message = "El apellido del titular es obligatorio")
+  private String surname;
+}
