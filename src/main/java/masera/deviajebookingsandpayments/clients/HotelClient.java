@@ -92,6 +92,52 @@ public class HotelClient {
   }
 
 
+  /**
+   * Obtiene los detalles de una reserva.
+   *
+   * @param bookingId ID de la reserva en HotelBeds
+   * @return detalles de la reserva
+   */
+  public Mono<Object> getBookingDetails(String bookingId) {
+    log.info("Obteniendo detalles de reserva: {}", bookingId);
+
+    return webClient
+            .get()
+            .uri(hotelbedsConfig.getBaseUrl() + BOOKING_ENDPOINT + "/" + bookingId)
+            .headers(this::addHotelbedsHeaders)
+            .retrieve()
+            .bodyToMono(Object.class)
+            .doOnSuccess(response -> log.info("Detalles de reserva obtenidos exitosamente"))
+            .doOnError(error -> log.error("Error al obtener detalles de reserva: {}", error.getMessage()))
+            .onErrorResume(WebClientResponseException.class, e -> {
+              log.error("Error de respuesta de Hotelbeds: {}", e.getResponseBodyAsString());
+              throw errorHandler.handleAmadeusError(e);
+            });
+  }
+
+  /**
+   * Cancela una reserva de hotel.
+   *
+   * @param bookingId ID de la reserva en HotelBeds
+   * @return confirmación de la cancelación
+   */
+  public Mono<Object> cancelBooking(String bookingId) {
+    log.info("Cancelando reserva: {}", bookingId);
+
+    return webClient
+            .delete()
+            .uri(hotelbedsConfig.getBaseUrl() + BOOKING_ENDPOINT + "/" + bookingId)
+            .headers(this::addHotelbedsHeaders)
+            .retrieve()
+            .bodyToMono(Object.class)
+            .doOnSuccess(response -> log.info("Reserva cancelada exitosamente"))
+            .doOnError(error -> log.error("Error al cancelar reserva: {}", error.getMessage()))
+            .onErrorResume(WebClientResponseException.class, e -> {
+              log.error("Error de respuesta de Hotelbeds: {}", e.getResponseBodyAsString());
+              throw errorHandler.handleAmadeusError(e);
+            });
+  }
+
   private void addHotelbedsHeaders(HttpHeaders headers) {
     long timestamp = System.currentTimeMillis() / 1000;
     String signature = DigestUtils.sha256Hex(hotelbedsConfig.getApiKey()

@@ -3,8 +3,15 @@ package masera.deviajebookingsandpayments.controllers;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.CreateHotelBookingRequestDto;
+import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
+import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.HotelBookingResponseDto;
+import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 /**
  * Controlador para reservas de hoteles.
@@ -15,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 public class HotelBookingController {
 
-  /*private final HotelBookingService hotelBookingService;
+  private final HotelBookingService hotelBookingService;
 
   /**
    * Endpoint unificado: Reservar hotel y procesar pago.
@@ -24,6 +31,7 @@ public class HotelBookingController {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con reserva y pago
    *
+   */
   @PostMapping("/book-and-pay")
   public ResponseEntity<BookAndPayResponseDto> bookHotelAndPay(
           @Valid @RequestBody CreateHotelBookingRequestDto request,
@@ -60,6 +68,7 @@ public class HotelBookingController {
    * @param id ID de la reserva de hotel
    * @return datos básicos del hotel reservado
    *
+   */
   @GetMapping("/bookings/{id}")
   public ResponseEntity<HotelBookingResponseDto> getHotelBooking(@PathVariable Long id) {
 
@@ -79,7 +88,7 @@ public class HotelBookingController {
    *
    * @param id ID de la reserva de hotel
    * @return detalles completos desde HotelBeds
-   *
+   */
   @GetMapping("/bookings/{id}/details")
   public ResponseEntity<Object> getHotelBookingDetails(@PathVariable Long id) {
 
@@ -100,6 +109,7 @@ public class HotelBookingController {
    * @param id ID de la reserva de hotel
    * @return respuesta de cancelación
    *
+   */
   @PutMapping("/bookings/{id}/cancel")
   public ResponseEntity<BookAndPayResponseDto> cancelHotelBooking(@PathVariable Long id) {
 
@@ -132,6 +142,7 @@ public class HotelBookingController {
    * @param rateKey clave de la tarifa a verificar
    * @return información actualizada de la tarifa
    *
+   */
   @PostMapping("/check-rates")
   public ResponseEntity<Object> checkRates(@RequestParam String rateKey) {
 
@@ -146,5 +157,5 @@ public class HotelBookingController {
               Map.of("error", "Tarifa no disponible", "message", e.getMessage())
       );
     }
-  }*/
+  }
 }
