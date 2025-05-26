@@ -1,5 +1,6 @@
 package masera.deviajebookingsandpayments.services.impl;
 
+import java.util.Map;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -50,6 +51,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     log.info("Iniciando proceso de reserva y pago para vuelo. Cliente: {}", bookingRequest.getClientId());
 
     try {
+      FlightOfferDto flightOffer = bookingRequest.getFlightOffer();
 
       // 1. Procesar pago PRIMERO
       log.info("Procesando pago para reserva de vuelo");
@@ -75,12 +77,11 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
       // 3. Extraer datos de la respuesta de Amadeus
       String externalId = extractExternalId(amadeusResponse);
-      FlightOfferDto confirmedOffer = extractConfirmedOffer(amadeusResponse);
 
       // 4. Guardar en nuestra base de datos
       log.info("Guardando reserva en base de datos");
       Booking savedBooking = saveBookingInDatabase(bookingRequest,
-              confirmedOffer, paymentResult, externalId);
+              flightOffer, paymentResult, externalId);
 
       // 6. Asociar el pago con la reserva
       updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
@@ -94,48 +95,6 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     } catch (Exception e) {
       log.error("Error inesperado en reserva de vuelo", e);
       return BookAndPayResponseDto.bookingFailed("Error interno: " + e.getMessage());
-    }
-  }
-
-  /**
-   * Prepara los datos de la reserva en el formato requerido por Amadeus.
-   */
-  private Object prepareAmadeusBookingData(
-          CreateFlightBookingRequestDto bookingRequest) {
-
-    return java.util.Map.of(
-            "data", java.util.Map.of(
-                    "type", "flight-order",
-                    "flightOffers", java.util.List.of(bookingRequest.getFlightOffer()),
-                    "travelers", bookingRequest.getTravelers(),
-                    "remarks", java.util.Map.of(
-                            "general", java.util.List.of(
-                                    java.util.Map.of(
-                                            "subType", "GENERAL_MISCELLANEOUS",
-                                            "text", "BOOKING FROM DEVIAJE"
-                                    )
-                            )
-                    ),
-                    "ticketingAgreement", java.util.Map.of(
-                            "option", "DELAY_TO_CANCEL",
-                            "delay", "6D"
-                    )
-            )
-    );
-  }
-
-  /**
-   * Actualiza el pago con el ID de la reserva.
-   */
-  private void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
-    Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
-    if (paymentOpt.isPresent()) {
-      Payment payment = paymentOpt.get();
-      Booking booking = bookingRepository.findById(bookingId).orElse(null);
-      if (booking != null) {
-        payment.setBooking(booking);
-        paymentRepository.save(payment);
-      }
     }
   }
 
@@ -160,13 +119,15 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     Optional<FlightBooking> flightBooking = flightBookingRepository.findById(bookingId);
 
     if (flightBooking.isEmpty()) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Reserva no encontrada: " + bookingId);
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+              "Reserva no encontrada: " + bookingId);
     }
 
     String externalId = flightBooking.get().getExternalId();
 
     if (externalId == null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ExternalId no disponible para la reserva: " + bookingId);
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+              "ExternalId no disponible para la reserva: " + bookingId);
     }
 
     try {
@@ -174,7 +135,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
       return flightClient.getFlightOrder(externalId).block();
     } catch (Exception e) {
       log.error("Error al obtener detalles de Amadeus: {}", externalId, e);
-      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No se pudieron obtener los detalles de la reserva");
+      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+              "No se pudieron obtener los detalles de la reserva");
     }
   }
 
@@ -245,38 +207,67 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     }
   }
 
-  // ============================================================================
   // MÉTODOS PRIVADOS DE UTILIDAD
-  // ============================================================================
 
+  /**
+   * Prepara los datos de la reserva en el formato requerido por Amadeus.
+   */
+  private Object prepareAmadeusBookingData(
+          CreateFlightBookingRequestDto bookingRequest) {
+
+    return java.util.Map.of(
+            "data", java.util.Map.of(
+                    "type", "flight-order",
+                    "flightOffers", java.util.List.of(bookingRequest.getFlightOffer()),
+                    "travelers", bookingRequest.getTravelers(),
+                    "remarks", java.util.Map.of(
+                            "general", java.util.List.of(
+                                    java.util.Map.of(
+                                            "subType", "GENERAL_MISCELLANEOUS",
+                                            "text", "BOOKING FROM DEVIAJE"
+                                    )
+                            )
+                    ),
+                    "ticketingAgreement", java.util.Map.of(
+                            "option", "DELAY_TO_CANCEL",
+                            "delay", "6D"
+                    )
+            )
+    );
+  }
+
+  /**
+   * Actualiza el pago con el ID de la reserva.
+   */
+  private void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
+    Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
+    if (paymentOpt.isPresent()) {
+      Payment payment = paymentOpt.get();
+      Booking booking = bookingRepository.findById(bookingId).orElse(null);
+      if (booking != null) {
+        payment.setBooking(booking);
+        paymentRepository.save(payment);
+      }
+    }
+  }
+
+  // EN ESTE TENGO QUE VER SI DEVOLVER UN FALLO O EL Fallback temporal
   private String extractExternalId(Object amadeusResponse) {
-    // Extraer el ID de la reserva de la respuesta de Amadeus
-    // Implementar según la estructura real de la respuesta
-
-    // Ejemplo (adaptar según la estructura real)
-    if (amadeusResponse instanceof java.util.Map) {
-      java.util.Map<String, Object> response = (java.util.Map<String, Object>) amadeusResponse;
+    if (amadeusResponse instanceof Map) {
+      Map<String, Object> response = (Map<String, Object>) amadeusResponse;
       if (response.containsKey("data")) {
         Object data = response.get("data");
-        if (data instanceof java.util.Map) {
-          return (String) ((java.util.Map<String, Object>) data).get("id");
+        if (data instanceof Map) {
+          return (String) ((Map<String, Object>) data).get("id");
         }
       }
     }
     return "EXT" + System.currentTimeMillis(); // Fallback temporal
   }
 
-  private FlightOfferDto extractConfirmedOffer(Object amadeusResponse) {
-    // Extraer la oferta confirmada de la respuesta de Amadeus
-    // Implementar según la estructura real de la respuesta
-
-    // Por ahora, devolvemos un objeto vacío
-    return new FlightOfferDto();
-  }
-
   @Transactional
   protected Booking saveBookingInDatabase(CreateFlightBookingRequestDto request,
-                                          FlightOfferDto confirmedOffer,
+                                          FlightOfferDto flightOffer,
                                           PaymentResponseDto payment,
                                           String externalId) {
 
@@ -289,8 +280,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .type(Booking.BookingType.FLIGHT)
             .totalAmount(payment.getAmount())
             .currency(payment.getCurrency())
-            .discount(BigDecimal.ZERO)
-            .taxes(calculateTaxes(confirmedOffer, payment.getAmount()))
+            .discount(BigDecimal.ZERO) // VER MAS ADELANTE DE APLICAR DESCUENTOS PARA MEMBRESIA
+            .taxes(calculateTaxes(flightOffer, payment.getAmount()))
             .build();
 
     Booking savedBooking = bookingRepository.save(booking);
@@ -299,13 +290,13 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     FlightBooking flightBooking = FlightBooking.builder()
             .booking(savedBooking)
             .externalId(externalId)
-            .origin(extractOrigin(confirmedOffer))
-            .destination(extractDestination(confirmedOffer))
-            .departureDate(extractDepartureDate(confirmedOffer))
-            .returnDate(extractReturnDate(confirmedOffer))
-            .carrier(extractCarrier(confirmedOffer))
-            .basePrice(payment.getAmount().multiply(new BigDecimal("0.85"))) // Estimado
-            .taxes(payment.getAmount().multiply(new BigDecimal("0.15"))) // Estimado
+            .origin(extractOrigin(flightOffer))
+            .destination(extractDestination(flightOffer))
+            .departureDate(extractDepartureDate(flightOffer))
+            .returnDate(extractReturnDate(flightOffer))
+            .carrier(extractCarrier(flightOffer))
+            .basePrice(payment.getAmount().multiply(new BigDecimal("0.85"))) // Es mejor sacarlo del flight offer
+            .taxes(payment.getAmount().multiply(new BigDecimal("0.15"))) // mismo que calculateTaxes
             .discounts(BigDecimal.ZERO)
             .totalPrice(payment.getAmount())
             .currency(payment.getCurrency())

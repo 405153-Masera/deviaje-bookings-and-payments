@@ -1,5 +1,6 @@
 package masera.deviajebookingsandpayments.clients;
 
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.configs.HotelbedsConfig;
@@ -11,8 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
-
-import java.util.Map;
 
 /**
  * Cliente para consumir el microservicio de hoteles de la API de Amadeus.

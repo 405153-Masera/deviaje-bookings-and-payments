@@ -1,9 +1,19 @@
 package masera.deviajebookingsandpayments.services.impl;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.clients.HotelClient;
 import masera.deviajebookingsandpayments.dtos.bookings.hotels.CreateHotelBookingRequestDto;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.PaxDto;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.RoomDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
@@ -12,6 +22,7 @@ import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.HotelBooking;
 import masera.deviajebookingsandpayments.entities.Payment;
+import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.HotelBookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
@@ -19,12 +30,6 @@ import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * Implementación del servicio de reservas de hoteles.
@@ -46,18 +51,11 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   public BookAndPayResponseDto bookAndPay(CreateHotelBookingRequestDto bookingRequest,
                                           PaymentRequestDto paymentRequest) {
 
-    log.info("Iniciando proceso de reserva y pago para hotel. Cliente: {}", bookingRequest.getClientId());
+    log.info("Iniciando proceso de reserva y pago para hotel. Cliente: {}",
+            bookingRequest.getClientId());
 
     try {
-      // 1. Verificar disponibilidad y precio actual
-      String rateKey = extractRateKey(bookingRequest);
-      Object rateVerification = checkRates(rateKey);
-
-      if (!isRateAvailable(rateVerification)) {
-        return BookAndPayResponseDto.verificationFailed("La tarifa seleccionada ya no está disponible");
-      }
-
-      // 2. Procesar pago PRIMERO
+      // 1. Procesar pago PRIMERO
       log.info("Procesando pago para reserva de hotel");
       PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
 
@@ -66,33 +64,36 @@ public class HotelBookingServiceImpl implements HotelBookingService {
         return BookAndPayResponseDto.paymentFailed(paymentResult.getErrorMessage());
       }
 
-      // 3. Si pago exitoso, crear reserva en HotelBeds
+      // 2. Si pago exitoso, crear reserva en HotelBeds
       log.info("Pago aprobado, creando reserva en HotelBeds");
-      Object hotelBedsResponse = hotelClient.createBooking(bookingRequest).block();
+      Map<String, Object> hotelBedsRequest = prepareHotelBedsBookingRequest(bookingRequest);
+      Object hotelBedsResponse = hotelClient.createBooking(hotelBedsRequest).block();
 
       if (hotelBedsResponse == null) {
         // Pago exitoso pero reserva falló → Reembolsar
         log.error("Reserva falló en HotelBeds, iniciando reembolso");
         paymentService.refundPayment(paymentResult.getId());
-        return BookAndPayResponseDto.bookingFailed("No se pudo confirmar la reserva. El pago será reembolsado.");
+        return BookAndPayResponseDto.bookingFailed(
+                "No se pudo confirmar la reserva. El pago será reembolsado.");
       }
 
-      // 4. Extraer datos de la respuesta de HotelBeds
+      // 3. Extraer datos de la respuesta de HotelBeds
       String externalId = extractExternalId(hotelBedsResponse);
       Map<String, Object> hotelDetails = extractHotelDetails(hotelBedsResponse);
 
-      // 5. Guardar en nuestra base de datos
+      // 4. Guardar en nuestra base de datos
       log.info("Guardando reserva en base de datos");
-      Booking savedBooking = saveBookingInDatabase(bookingRequest, paymentResult, externalId, hotelDetails);
+      Booking savedBooking = saveBookingInDatabase(bookingRequest,
+              paymentResult, externalId, hotelDetails);
+
+      // 5. Actualizar el pago con la reserva
+      updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
 
       // 6. Convertir a DTOs de respuesta
-      HotelBookingResponseDto bookingResponse = convertToHotelBookingResponse(savedBooking.getHotelBookings().get(0));
+      BookingResponseDto bookingResponse = convertToBookingResponse(savedBooking);
 
       log.info("Reserva de hotel completada exitosamente. ID: {}", savedBooking.getId());
-      return BookAndPayResponseDto.success(
-              convertToBookingResponse(savedBooking),
-              paymentResult
-      );
+      return BookAndPayResponseDto.success(bookingResponse);
 
     } catch (Exception e) {
       log.error("Error inesperado en reserva de hotel", e);
@@ -132,7 +133,6 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
     try {
       // 2. Llamar a HotelBeds API para obtener detalles completos
-      // Nota: HotelBeds normalmente tiene un endpoint GET /bookings/{reference}
       return hotelClient.getBookingDetails(externalId).block();
     } catch (Exception e) {
       log.error("Error al obtener detalles de HotelBeds: {}", externalId, e);
@@ -207,21 +207,74 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     }
   }
 
-  // ============================================================================
   // MÉTODOS PRIVADOS DE UTILIDAD
-  // ============================================================================
 
-  private String extractRateKey(CreateHotelBookingRequestDto request) {
-    if (request.getRooms() == null || request.getRooms().isEmpty()) {
-      throw new RuntimeException("No se encontraron habitaciones en la solicitud");
-    }
-    return request.getRooms().get(0).getRateKey();
+  /**
+   * Prepara la solicitud de reserva para HotelBeds.
+   */
+  private Map<String, Object> prepareHotelBedsBookingRequest(CreateHotelBookingRequestDto request) {
+    Map<String, Object> bookingRequest = new HashMap<>();
+
+    // Datos del titular
+    Map<String, String> holder = new HashMap<>();
+    holder.put("name", request.getHolder().getName());
+    holder.put("surname", request.getHolder().getSurname());
+
+    // Habitaciones
+    List<Map<String, Object>> rooms = request.getRooms().stream()
+            .map(this::convertRoomToMap)
+            .collect(Collectors.toList());
+
+    // Solicitud completa
+    bookingRequest.put("holder", holder);
+    bookingRequest.put("rooms", rooms);
+    bookingRequest.put("clientReference", request.getClientReference());
+    bookingRequest.put("remark", request.getRemark());
+    bookingRequest.put("tolerance", request.getTolerance());
+
+    return bookingRequest;
   }
 
-  private boolean isRateAvailable(Object rateVerification) {
-    // Implementar lógica según la respuesta de HotelBeds
-    // Por ejemplo, verificar si hay errores o si el rate está disponible
-    return rateVerification != null;
+  /**
+   * Convierte un objeto RoomDto a un Map para la API de HotelBeds.
+   */
+  private Map<String, Object> convertRoomToMap(RoomDto room) {
+    Map<String, Object> roomMap = new HashMap<>();
+    roomMap.put("rateKey", room.getRateKey());
+
+    List<Map<String, String>> paxes = room.getPaxes().stream()
+            .map(this::convertPaxToMap)
+            .collect(Collectors.toList());
+
+    roomMap.put("paxes", paxes);
+    return roomMap;
+  }
+
+  /**
+   * Convierte un objeto PaxDto a un Map para la API de HotelBeds.
+   */
+  private Map<String, String> convertPaxToMap(PaxDto pax) {
+    Map<String, String> paxMap = new HashMap<>();
+    paxMap.put("roomId", pax.getRoomId().toString());
+    paxMap.put("type", pax.getType());
+    paxMap.put("name", pax.getName());
+    paxMap.put("surname", pax.getSurname());
+    return paxMap;
+  }
+
+  /**
+   * Actualiza el pago con el ID de la reserva.
+   */
+  private void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
+    Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
+    if (paymentOpt.isPresent()) {
+      Payment payment = paymentOpt.get();
+      Booking booking = bookingRepository.findById(bookingId).orElse(null);
+      if (booking != null) {
+        payment.setBooking(booking);
+        paymentRepository.save(payment);
+      }
+    }
   }
 
   private String extractExternalId(Object hotelBedsResponse) {
@@ -234,7 +287,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
         return (String) ((Map<String, Object>) booking).get("reference");
       }
     }
-    return null;
+    return "HOTEL_" + System.currentTimeMillis(); // Fallback temporal
   }
 
   private Map<String, Object> extractHotelDetails(Object hotelBedsResponse) {
@@ -283,7 +336,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .adults(countAdults(request))
             .children(countChildren(request))
             .basePrice(payment.getAmount().multiply(new BigDecimal("0.85"))) // Estimado
-            .taxes(payment.getAmount().multiply(new BigDecimal("0.15"))) // Estimado
+            .taxes(BigDecimal.ZERO) // Estimado
             .discounts(BigDecimal.ZERO)
             .totalPrice(payment.getAmount())
             .currency(payment.getCurrency())
@@ -328,20 +381,56 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     return LocalDate.now().plusDays(10); // Default
   }
 
+
   private String extractHotelCode(Map<String, Object> hotelDetails) {
-    // Implementar según estructura de HotelBeds
+    if (hotelDetails.containsKey("booking") && hotelDetails.get("booking") instanceof Map) {
+      Map<String, Object> booking = (Map<String, Object>) hotelDetails.get("booking");
+      if (booking.containsKey("hotel") && booking.get("hotel") instanceof Map) {
+        Map<String, Object> hotel = (Map<String, Object>) booking.get("hotel");
+        if (hotel.containsKey("code")) {
+          return String.valueOf(hotel.get("code"));
+        }
+      }
+    }
     return "HOTEL_001"; // Placeholder
   }
 
   private String extractHotelName(Map<String, Object> hotelDetails) {
+    if (hotelDetails.containsKey("booking") && hotelDetails.get("booking") instanceof Map) {
+      Map<String, Object> booking = (Map<String, Object>) hotelDetails.get("booking");
+      if (booking.containsKey("hotel") && booking.get("hotel") instanceof Map) {
+        Map<String, Object> hotel = (Map<String, Object>) booking.get("hotel");
+        if (hotel.containsKey("name")) {
+          return String.valueOf(hotel.get("name"));
+        }
+      }
+    }
     return "Hotel Name"; // Placeholder
   }
 
   private String extractDestinationCode(Map<String, Object> hotelDetails) {
+    if (hotelDetails.containsKey("booking") && hotelDetails.get("booking") instanceof Map) {
+      Map<String, Object> booking = (Map<String, Object>) hotelDetails.get("booking");
+      if (booking.containsKey("hotel") && booking.get("hotel") instanceof Map) {
+        Map<String, Object> hotel = (Map<String, Object>) booking.get("hotel");
+        if (hotel.containsKey("destinationCode")) {
+          return String.valueOf(hotel.get("destinationCode"));
+        }
+      }
+    }
     return "MAD"; // Placeholder
   }
 
   private String extractDestinationName(Map<String, Object> hotelDetails) {
+    if (hotelDetails.containsKey("booking") && hotelDetails.get("booking") instanceof Map) {
+      Map<String, Object> booking = (Map<String, Object>) hotelDetails.get("booking");
+      if (booking.containsKey("hotel") && booking.get("hotel") instanceof Map) {
+        Map<String, Object> hotel = (Map<String, Object>) booking.get("hotel");
+        if (hotel.containsKey("destinationName")) {
+          return String.valueOf(hotel.get("destinationName"));
+        }
+      }
+    }
     return "Madrid"; // Placeholder
   }
 
@@ -363,28 +452,10 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
   private HotelBookingResponseDto convertToHotelBookingResponse(HotelBooking hotelBooking) {
     HotelBookingResponseDto dto = modelMapper.map(hotelBooking, HotelBookingResponseDto.class);
-
-    // Campos calculados
-    dto.setOccupancyDescription(buildOccupancyDescription(hotelBooking.getAdults(), hotelBooking.getChildren()));
-    dto.setStayDescription(buildStayDescription(hotelBooking.getNumberOfNights(), hotelBooking.getDestinationName()));
-    dto.setPricePerNight(hotelBooking.getTotalPrice().divide(new BigDecimal(hotelBooking.getNumberOfNights())));
-
     return dto;
   }
 
   private BookingResponseDto convertToBookingResponse(Booking booking) {
     return modelMapper.map(booking, BookingResponseDto.class);
-  }
-
-  private String buildOccupancyDescription(Integer adults, Integer children) {
-    if (children == 0) {
-      return adults + (adults == 1 ? " adulto" : " adultos");
-    }
-    return adults + (adults == 1 ? " adulto" : " adultos") +
-            ", " + children + (children == 1 ? " niño" : " niños");
-  }
-
-  private String buildStayDescription(Integer nights, String destination) {
-    return nights + (nights == 1 ? " noche" : " noches") + " en " + destination;
   }
 }

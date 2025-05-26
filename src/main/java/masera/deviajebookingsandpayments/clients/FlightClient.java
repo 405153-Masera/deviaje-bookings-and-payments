@@ -28,7 +28,7 @@ public class FlightClient {
 
   private final AmadeusTokenService amadeusTokenService;
 
-  private static final String FLIGHT_OFFERS_URL_V1 = "/v1/shopping/flight-offers/pricing";
+  private static final String FLIGHT_OFFERS_PRICING_URL = "/v1/shopping/flight-offers/pricing";
 
   private static final String FLIGHT_ORDERS_URL = "/v1/booking/flight-orders";
 
@@ -49,7 +49,7 @@ public class FlightClient {
     );
 
     String token = amadeusTokenService.getToken();
-    String uri = amadeusConfig.getBaseUrl() + FLIGHT_OFFERS_URL_V1;
+    String uri = amadeusConfig.getBaseUrl() + FLIGHT_OFFERS_PRICING_URL;
 
     return webClient.post()
             .uri(uri)
