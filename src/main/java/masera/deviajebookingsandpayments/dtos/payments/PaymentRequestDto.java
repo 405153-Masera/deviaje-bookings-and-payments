@@ -1,12 +1,17 @@
 package masera.deviajebookingsandpayments.dtos.payments;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 
 /**
  * DTO para procesar pago (Forma B - Backend directo).
@@ -39,5 +44,8 @@ public class PaymentRequestDto {
 
   // Datos adicionales para Mercado Pago
   private PayerDto payer;
+
+  // id del emisor de la tarjeta (opcional)
+  private String issuerId;
 }
 

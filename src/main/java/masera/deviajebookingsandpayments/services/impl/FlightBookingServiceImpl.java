@@ -1,15 +1,18 @@
 package masera.deviajebookingsandpayments.services.impl;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.clients.FlightClient;
 import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.bookings.flights.FlightOfferDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
-import masera.deviajebookingsandpayments.dtos.payments.PaymentResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.FlightBooking;
 import masera.deviajebookingsandpayments.entities.Payment;
@@ -23,10 +26,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Optional;
 
 /**
  * Implementación del servicio de reservas de vuelos.
@@ -51,15 +50,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     log.info("Iniciando proceso de reserva y pago para vuelo. Cliente: {}", bookingRequest.getClientId());
 
     try {
-      // 1. Verificar disponibilidad y precio actual de la oferta
-      Object flightOffer = bookingRequest.getFlightOffer();
-      Object verifiedOffer = verifyFlightOfferPrice(flightOffer);
 
-      if (verifiedOffer == null) {
-        return BookAndPayResponseDto.verificationFailed("La oferta seleccionada ya no está disponible");
-      }
-
-      // 2. Procesar pago PRIMERO
+      // 1. Procesar pago PRIMERO
       log.info("Procesando pago para reserva de vuelo");
       PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
 
@@ -68,26 +60,32 @@ public class FlightBookingServiceImpl implements FlightBookingService {
         return BookAndPayResponseDto.paymentFailed(paymentResult.getErrorMessage());
       }
 
-      // 3. Si pago exitoso, crear reserva en Amadeus
+      // 2. Si pago exitoso, crear reserva en Amadeus
       log.info("Pago aprobado, creando reserva en Amadeus");
-      Object amadeusResponse = flightClient.createFlightOrder(bookingRequest).block();
+      Object amadeusBookingData = prepareAmadeusBookingData(bookingRequest);
+      Object amadeusResponse = flightClient.createFlightOrder(amadeusBookingData).block();
 
       if (amadeusResponse == null) {
         // Pago exitoso pero reserva falló → Reembolsar
         log.error("Reserva falló en Amadeus, iniciando reembolso");
         paymentService.refundPayment(paymentResult.getId());
-        return BookAndPayResponseDto.bookingFailed("No se pudo confirmar la reserva. El pago será reembolsado.");
+        return BookAndPayResponseDto.bookingFailed(
+                "No se pudo confirmar la reserva. El pago será reembolsado.");
       }
 
-      // 4. Extraer datos de la respuesta de Amadeus
+      // 3. Extraer datos de la respuesta de Amadeus
       String externalId = extractExternalId(amadeusResponse);
       FlightOfferDto confirmedOffer = extractConfirmedOffer(amadeusResponse);
 
-      // 5. Guardar en nuestra base de datos
+      // 4. Guardar en nuestra base de datos
       log.info("Guardando reserva en base de datos");
-      Booking savedBooking = saveBookingInDatabase(bookingRequest, confirmedOffer, paymentResult, externalId);
+      Booking savedBooking = saveBookingInDatabase(bookingRequest,
+              confirmedOffer, paymentResult, externalId);
 
-      // 6. Convertir a DTOs de respuesta
+      // 6. Asociar el pago con la reserva
+      updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
+
+      // 7. Convertir a DTOs de respuesta
       BookingResponseDto bookingResponse = convertToBookingResponse(savedBooking);
 
       log.info("Reserva de vuelo completada exitosamente. ID: {}", savedBooking.getId());
@@ -96,6 +94,48 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     } catch (Exception e) {
       log.error("Error inesperado en reserva de vuelo", e);
       return BookAndPayResponseDto.bookingFailed("Error interno: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Prepara los datos de la reserva en el formato requerido por Amadeus.
+   */
+  private Object prepareAmadeusBookingData(
+          CreateFlightBookingRequestDto bookingRequest) {
+
+    return java.util.Map.of(
+            "data", java.util.Map.of(
+                    "type", "flight-order",
+                    "flightOffers", java.util.List.of(bookingRequest.getFlightOffer()),
+                    "travelers", bookingRequest.getTravelers(),
+                    "remarks", java.util.Map.of(
+                            "general", java.util.List.of(
+                                    java.util.Map.of(
+                                            "subType", "GENERAL_MISCELLANEOUS",
+                                            "text", "BOOKING FROM DEVIAJE"
+                                    )
+                            )
+                    ),
+                    "ticketingAgreement", java.util.Map.of(
+                            "option", "DELAY_TO_CANCEL",
+                            "delay", "6D"
+                    )
+            )
+    );
+  }
+
+  /**
+   * Actualiza el pago con el ID de la reserva.
+   */
+  private void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
+    Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
+    if (paymentOpt.isPresent()) {
+      Payment payment = paymentOpt.get();
+      Booking booking = bookingRepository.findById(bookingId).orElse(null);
+      if (booking != null) {
+        payment.setBooking(booking);
+        paymentRepository.save(payment);
+      }
     }
   }
 

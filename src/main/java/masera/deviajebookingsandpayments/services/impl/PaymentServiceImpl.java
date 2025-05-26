@@ -1,18 +1,17 @@
 package masera.deviajebookingsandpayments.services.impl;
 
+
 import com.mercadopago.MercadoPagoConfig;
 import com.mercadopago.client.payment.PaymentClient;
 import com.mercadopago.client.payment.PaymentCreateRequest;
 import com.mercadopago.client.payment.PaymentPayerRequest;
 import com.mercadopago.client.payment.PaymentRefundClient;
-import com.mercadopago.client.preference.PreferenceBackUrlsRequest;
-import com.mercadopago.client.preference.PreferenceClient;
-import com.mercadopago.client.preference.PreferenceItemRequest;
-import com.mercadopago.client.preference.PreferenceRequest;
-import com.mercadopago.resources.payment.PaymentRefund;
-import com.mercadopago.resources.preference.Preference;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
+import com.mercadopago.resources.payment.PaymentRefund;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.configs.PagoConfig;
@@ -20,16 +19,10 @@ import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
-import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Implementación del servicio de pagos con Mercado Pago.
@@ -40,11 +33,10 @@ import java.util.Optional;
 public class PaymentServiceImpl implements PaymentService {
 
   private final PaymentRepository paymentRepository;
-  private final ModelMapper modelMapper;
   private final PagoConfig pagoConfig;
 
   /**
-   * Inicializa la configuración de Mercado Pago
+   * Inicializa la configuración de Mercado Pago.
    */
   private void initMercadoPagoConfig() {
     MercadoPagoConfig.setAccessToken(pagoConfig.getAccessToken());
@@ -55,16 +47,17 @@ public class PaymentServiceImpl implements PaymentService {
   public PaymentResponseDto processPayment(PaymentRequestDto paymentRequest) {
     log.info("Procesando pago por {} {}", paymentRequest.getAmount(), paymentRequest.getCurrency());
 
+    if (paymentRequest.getPaymentToken() == null || paymentRequest.getPaymentToken().isEmpty()) {
+      return PaymentResponseDto.rejected(
+              "MISSING_TOKEN",
+              "El token de pago es obligatorio"
+      );
+    }
+
     try {
       initMercadoPagoConfig();
+      return processDirectPayment(paymentRequest);
 
-      // Si tenemos un token de pago, procesamos directamente
-      if (paymentRequest.getPaymentToken() != null && !paymentRequest.getPaymentToken().isEmpty()) {
-        return processDirectPayment(paymentRequest);
-      } else {
-        // Si no tenemos token, creamos una preferencia de pago
-        return createPaymentPreference(paymentRequest);
-      }
     } catch (Exception e) {
       log.error("Error al procesar pago con Mercado Pago", e);
       return PaymentResponseDto.rejected(
@@ -75,9 +68,11 @@ public class PaymentServiceImpl implements PaymentService {
   }
 
   /**
-   * Procesa un pago directo con token
+   * Procesa un pago directo con token.
    */
-  private PaymentResponseDto processDirectPayment(PaymentRequestDto paymentRequest) throws MPException, MPApiException {
+  private PaymentResponseDto processDirectPayment(PaymentRequestDto paymentRequest)
+                                              throws MPException, MPApiException {
+
     PaymentClient paymentClient = new PaymentClient();
 
     // Crear el builder para PaymentPayerRequest si tenemos datos del pagador
@@ -91,8 +86,8 @@ public class PaymentServiceImpl implements PaymentService {
     PaymentCreateRequest.PaymentCreateRequestBuilder paymentBuilder = PaymentCreateRequest.builder()
             .transactionAmount(paymentRequest.getAmount())
             .token(paymentRequest.getPaymentToken())
-            .description(paymentRequest.getDescription() != null ?
-                    paymentRequest.getDescription() : "Reserva en DeViaje")
+            .description(paymentRequest.getDescription() != null
+                    ? paymentRequest.getDescription() : "Reserva en DeViaje")
             .installments(paymentRequest.getInstallments())
             .paymentMethodId(paymentRequest.getPaymentMethod());
 
@@ -102,10 +97,12 @@ public class PaymentServiceImpl implements PaymentService {
     PaymentCreateRequest paymentCreateRequest = paymentBuilder.build();
 
     // Procesar el pago
-    com.mercadopago.resources.payment.Payment createdPayment = paymentClient.create(paymentCreateRequest);
+    com.mercadopago.resources.payment.Payment createdPayment =
+            paymentClient.create(paymentCreateRequest);
 
     // Guardar en nuestra base de datos
-    masera.deviajebookingsandpayments.entities.Payment paymentEntity = masera.deviajebookingsandpayments.entities.Payment.builder()
+    masera.deviajebookingsandpayments.entities.Payment paymentEntity =
+                  masera.deviajebookingsandpayments.entities.Payment.builder()
             .amount(paymentRequest.getAmount())
             .currency(paymentRequest.getCurrency())
             .method(paymentRequest.getPaymentMethod())
@@ -115,7 +112,8 @@ public class PaymentServiceImpl implements PaymentService {
             .date(LocalDateTime.now())
             .build();
 
-    masera.deviajebookingsandpayments.entities.Payment savedPayment = paymentRepository.save(paymentEntity);
+    masera.deviajebookingsandpayments.entities.Payment savedPayment =
+            paymentRepository.save(paymentEntity);
 
     if ("approved".equals(createdPayment.getStatus())) {
       return PaymentResponseDto.approved(
@@ -138,66 +136,14 @@ public class PaymentServiceImpl implements PaymentService {
     }
   }
 
-  /**
-   * Crea una preferencia de pago (redirección a Mercado Pago)
-   */
-  private PaymentResponseDto createPaymentPreference(PaymentRequestDto paymentRequest) throws MPException, MPApiException {
-    PreferenceClient preferenceClient = new PreferenceClient();
-
-    // Crear ítem para la preferencia
-    PreferenceItemRequest item =
-            PreferenceItemRequest.builder()
-                    .title(paymentRequest.getDescription() != null ?
-                            paymentRequest.getDescription() : "Reserva en DeViaje")
-                    .quantity(1)
-                    .unitPrice(paymentRequest.getAmount())
-                    .build();
-
-    List<PreferenceItemRequest> items = new ArrayList<>();
-    items.add(item);
-
-    // Configurar preferencia
-    PreferenceBackUrlsRequest backUrls = PreferenceBackUrlsRequest.builder()
-            .success(pagoConfig.getSuccessUrl())
-            .failure(pagoConfig.getFailureUrl())
-            .pending(pagoConfig.getPendingUrl())
-            .build();
-
-    PreferenceRequest preferenceRequest = PreferenceRequest.builder()
-            .items(items)
-            .backUrls(backUrls)
-            .autoReturn("approved")
-            .build();
-
-    // Crear preferencia
-    Preference preference = preferenceClient.create(preferenceRequest);
-
-    // Guardar pago pendiente en nuestra base de datos
-    masera.deviajebookingsandpayments.entities.Payment paymentEntity = masera.deviajebookingsandpayments.entities.Payment.builder()
-            .amount(paymentRequest.getAmount())
-            .currency(paymentRequest.getCurrency())
-            .method("MERCADO_PAGO")
-            .paymentProvider("MERCADO_PAGO")
-            .externalPaymentId(preference.getId())
-            .status(masera.deviajebookingsandpayments.entities.Payment.PaymentStatus.PENDING)
-            .date(LocalDateTime.now())
-            .build();
-
-    masera.deviajebookingsandpayments.entities.Payment savedPayment = paymentRepository.save(paymentEntity);
-
-    return PaymentResponseDto.pending(
-            preference.getId(),
-            paymentRequest.getAmount(),
-            preference.getInitPoint()
-    );
-  }
-
   @Override
   @Transactional
   public PaymentResponseDto refundPayment(Long paymentId) {
     log.info("Procesando reembolso para pago ID: {}", paymentId);
 
-    Optional<masera.deviajebookingsandpayments.entities.Payment> paymentOpt = paymentRepository.findById(paymentId);
+    Optional<masera.deviajebookingsandpayments.entities.Payment> paymentOpt =
+            paymentRepository.findById(paymentId);
+
     if (paymentOpt.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pago no encontrado");
     }
@@ -205,7 +151,8 @@ public class PaymentServiceImpl implements PaymentService {
     masera.deviajebookingsandpayments.entities.Payment payment = paymentOpt.get();
 
     // Verificar si ya está reembolsado
-    if (masera.deviajebookingsandpayments.entities.Payment.PaymentStatus.REFUNDED.equals(payment.getStatus())) {
+    if (masera.deviajebookingsandpayments.entities
+            .Payment.PaymentStatus.REFUNDED.equals(payment.getStatus())) {
       return PaymentResponseDto.builder()
               .id(payment.getId())
               .externalPaymentId(payment.getExternalPaymentId())
@@ -251,27 +198,34 @@ public class PaymentServiceImpl implements PaymentService {
     log.info("Procesando reembolso para reserva ID: {}", bookingId);
 
     // Buscar todos los pagos de la reserva
-    List<masera.deviajebookingsandpayments.entities.Payment> payments = paymentRepository.findByBookingId(bookingId);
+    List<masera.deviajebookingsandpayments.entities.Payment> payments =
+            paymentRepository.findByBookingId(bookingId);
 
     if (payments.isEmpty()) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No se encontraron pagos para la reserva");
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+              "No se encontraron pagos para la reserva");
     }
 
     // Procesar reembolso del último pago aprobado
     for (masera.deviajebookingsandpayments.entities.Payment payment : payments) {
-      if (masera.deviajebookingsandpayments.entities.Payment.PaymentStatus.APPROVED.equals(payment.getStatus())) {
+      if (masera.deviajebookingsandpayments.entities
+              .Payment.PaymentStatus.APPROVED.equals(payment.getStatus())) {
+
         return refundPayment(payment.getId());
       }
     }
 
-    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No hay pagos aprobados para reembolsar");
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            "No hay pagos aprobados para reembolsar");
   }
 
   @Override
   public PaymentResponseDto checkPaymentStatus(Long paymentId) {
     log.info("Verificando estado de pago ID: {}", paymentId);
 
-    Optional<masera.deviajebookingsandpayments.entities.Payment> paymentOpt = paymentRepository.findById(paymentId);
+    Optional<masera.deviajebookingsandpayments.entities.Payment> paymentOpt =
+            paymentRepository.findById(paymentId);
+
     if (paymentOpt.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pago no encontrado");
     }
@@ -280,7 +234,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     try {
       // Si el pago está pendiente, verificamos su estado actual en Mercado Pago
-      if (masera.deviajebookingsandpayments.entities.Payment.PaymentStatus.PENDING.equals(payment.getStatus())) {
+      if (masera.deviajebookingsandpayments.entities
+              .Payment.PaymentStatus.PENDING.equals(payment.getStatus())) {
+
         return checkExternalPaymentStatus(payment.getExternalPaymentId());
       }
 
@@ -303,43 +259,38 @@ public class PaymentServiceImpl implements PaymentService {
       initMercadoPagoConfig();
       PaymentClient paymentClient = new PaymentClient();
 
-      // Intentar buscar pago en Mercado Pago (para pagos directos)
-      try {
-        Long mpPaymentId = Long.parseLong(externalPaymentId);
-        com.mercadopago.resources.payment.Payment mpPayment = paymentClient.get(mpPaymentId);
+      Long mpPaymentId = Long.parseLong(externalPaymentId);
+      com.mercadopago.resources.payment.Payment mpPayment = paymentClient.get(mpPaymentId);
 
-        // Buscar el pago en nuestra BD
-        Optional<masera.deviajebookingsandpayments.entities.Payment> paymentOpt =
-                paymentRepository.findByExternalPaymentId(externalPaymentId);
+      // Buscar el pago en nuestra BD
+      Optional<masera.deviajebookingsandpayments.entities.Payment> paymentOpt =
+              paymentRepository.findByExternalPaymentId(externalPaymentId);
 
-        if (paymentOpt.isPresent()) {
-          masera.deviajebookingsandpayments.entities.Payment payment = paymentOpt.get();
+      if (paymentOpt.isPresent()) {
+        masera.deviajebookingsandpayments.entities.Payment payment = paymentOpt.get();
 
-          // Actualizar estado si ha cambiado
-          masera.deviajebookingsandpayments.entities.Payment.PaymentStatus newStatus =
-                  mapMercadoPagoStatus(mpPayment.getStatus());
+        // Actualizar estado si ha cambiado
+        masera.deviajebookingsandpayments.entities.Payment.PaymentStatus newStatus =
+                mapMercadoPagoStatus(mpPayment.getStatus());
 
-          if (!payment.getStatus().equals(newStatus)) {
-            payment.setStatus(newStatus);
-            paymentRepository.save(payment);
-          }
-
-          return convertToPaymentResponseDto(payment);
-        } else {
-          // Si no lo tenemos en nuestra BD, devolver información básica
-          return PaymentResponseDto.builder()
-                  .externalPaymentId(externalPaymentId)
-                  .status(mpPayment.getStatus().toUpperCase())
-                  .build();
+        if (!payment.getStatus().equals(newStatus)) {
+          payment.setStatus(newStatus);
+          paymentRepository.save(payment);
         }
-      } catch (NumberFormatException e) {
-        // No es un ID de pago directo, puede ser una preferencia
-        // En un escenario real, buscaríamos por preferencia o notificación
-        throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "No se pudo verificar el estado de esta referencia de pago"
-        );
+
+        return convertToPaymentResponseDto(payment);
+      } else {
+        // Si no lo tenemos en nuestra BD, devolver información básica
+        return PaymentResponseDto.builder()
+                .externalPaymentId(externalPaymentId)
+                .status(mpPayment.getStatus().toUpperCase())
+                .build();
       }
+    } catch (NumberFormatException e) {
+      throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST,
+              "ID de pago inválido"
+      );
     } catch (MPException | MPApiException e) {
       log.error("Error al verificar pago con Mercado Pago", e);
       throw new ResponseStatusException(
@@ -350,29 +301,36 @@ public class PaymentServiceImpl implements PaymentService {
   }
 
   /**
-   * Mapea el estado de Mercado Pago a nuestro enum de estados
+   * Mapea el estado de Mercado Pago a nuestro enum de estados.
    */
-  private masera.deviajebookingsandpayments.entities.Payment.PaymentStatus mapMercadoPagoStatus(String mpStatus) {
-    if (mpStatus == null) return masera.deviajebookingsandpayments.entities.Payment.PaymentStatus.PENDING;
+  private masera.deviajebookingsandpayments.entities
+          .Payment.PaymentStatus mapMercadoPagoStatus(String mpStatus) {
 
-    switch (mpStatus.toLowerCase()) {
-      case "approved":
-        return masera.deviajebookingsandpayments.entities.Payment.PaymentStatus.APPROVED;
-      case "rejected":
-        return masera.deviajebookingsandpayments.entities.Payment.PaymentStatus.REJECTED;
-      case "cancelled":
-        return masera.deviajebookingsandpayments.entities.Payment.PaymentStatus.CANCELLED;
-      case "refunded":
-        return masera.deviajebookingsandpayments.entities.Payment.PaymentStatus.REFUNDED;
-      default:
-        return masera.deviajebookingsandpayments.entities.Payment.PaymentStatus.PENDING;
+    if (mpStatus == null) {
+      return masera.deviajebookingsandpayments.entities
+              .Payment.PaymentStatus.PENDING;
     }
+
+    return switch (mpStatus.toLowerCase()) {
+      case "approved" -> masera.deviajebookingsandpayments.entities
+              .Payment.PaymentStatus.APPROVED;
+      case "rejected" -> masera.deviajebookingsandpayments.entities
+              .Payment.PaymentStatus.REJECTED;
+      case "cancelled" -> masera.deviajebookingsandpayments.entities
+              .Payment.PaymentStatus.CANCELLED;
+      case "refunded" -> masera.deviajebookingsandpayments.entities
+              .Payment.PaymentStatus.REFUNDED;
+      default -> masera.deviajebookingsandpayments.entities
+              .Payment.PaymentStatus.PENDING;
+    };
   }
 
   /**
-   * Convierte una entidad Payment a un DTO PaymentResponseDto
+   * Convierte una entidad Payment a un DTO PaymentResponseDto.
    */
-  private PaymentResponseDto convertToPaymentResponseDto(masera.deviajebookingsandpayments.entities.Payment payment) {
+  private PaymentResponseDto convertToPaymentResponseDto(
+          masera.deviajebookingsandpayments.entities.Payment payment) {
+
     return PaymentResponseDto.builder()
             .id(payment.getId())
             .externalPaymentId(payment.getExternalPaymentId())

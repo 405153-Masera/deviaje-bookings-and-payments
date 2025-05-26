@@ -3,6 +3,7 @@ package masera.deviajebookingsandpayments.controllers;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import masera.deviajebookingsandpayments.dtos.BookFlightAndPayRequest;
 import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
@@ -28,18 +29,18 @@ public class FlightBookingController {
    * Endpoint unificado: Reservar vuelo y procesar pago.
    *
    * @param request datos de la reserva de vuelo
-   * @param paymentRequest datos del pago
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
   public ResponseEntity<BookAndPayResponseDto> bookFlightAndPay(
-          @Valid @RequestBody CreateFlightBookingRequestDto request,
-          @Valid @RequestBody PaymentRequestDto paymentRequest) {
+          @Valid @RequestBody BookFlightAndPayRequest request) {
 
-    log.info("Iniciando reserva y pago de vuelo para cliente: {}", request.getClientId());
+    log.info("Iniciando reserva y pago de vuelo para cliente: {}",
+            request.getBookingRequest().getClientId());
 
     try {
-      BookAndPayResponseDto response = flightBookingService.bookAndPay(request, paymentRequest);
+      BookAndPayResponseDto response = flightBookingService.bookAndPay(request.getBookingRequest(),
+              request.getPaymentRequest());
 
       if (response.getSuccess()) {
         log.info("Reserva de vuelo exitosa. ID: {}", response.getBooking().getId());

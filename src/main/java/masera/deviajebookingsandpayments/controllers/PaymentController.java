@@ -1,14 +1,20 @@
 package masera.deviajebookingsandpayments.controllers;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import masera.deviajebookingsandpayments.configs.PagoConfig;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
-import masera.deviajebookingsandpayments.dtos.payments.PaymentResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.validation.Valid;
 
 /**
  * Controlador para operaciones de pago directas.
@@ -21,14 +27,18 @@ public class PaymentController {
 
   private final PaymentService paymentService;
 
+  private final PagoConfig pagoConfig;
+
   /**
    * Procesa un pago directamente.
    *
    * @param paymentRequest datos del pago
    * @return resultado del procesamiento
    */
-  @PostMapping("/process")
-  public ResponseEntity<PaymentResponseDto> processPayment(@Valid @RequestBody PaymentRequestDto paymentRequest) {
+  @PostMapping("/process/payment")
+  public ResponseEntity<PaymentResponseDto> processPayment(
+          @Valid @RequestBody PaymentRequestDto paymentRequest) {
+
     log.info("Procesando pago por {} {}", paymentRequest.getAmount(), paymentRequest.getCurrency());
 
     try {
@@ -52,7 +62,7 @@ public class PaymentController {
   /**
    * Verifica el estado de un pago.
    *
-   * @param paymentId ID del pago
+   * @param paymentId id del pago
    * @return estado actualizado del pago
    */
   @GetMapping("/{paymentId}")
@@ -76,11 +86,13 @@ public class PaymentController {
   /**
    * Verifica el estado de un pago externo por su ID.
    *
-   * @param externalPaymentId ID externo del pago
+   * @param externalPaymentId id externo del pago
    * @return estado actualizado del pago
    */
   @GetMapping("/external/{externalPaymentId}")
-  public ResponseEntity<PaymentResponseDto> checkExternalPaymentStatus(@PathVariable String externalPaymentId) {
+  public ResponseEntity<PaymentResponseDto> checkExternalPaymentStatus(
+          @PathVariable String externalPaymentId) {
+
     log.info("Verificando estado de pago externo: {}", externalPaymentId);
 
     try {
@@ -134,12 +146,11 @@ public class PaymentController {
   @GetMapping("/config")
   public ResponseEntity<Object> getPaymentConfig() {
     try {
-      // Devuelve la configuración pública necesaria para el frontend
+      // Esta información es necesaria para que el frontend genere el token
       return ResponseEntity.ok(java.util.Map.of(
-              "merchantId", "tu-merchant-id",
-              "publicKey", "tu-public-key",
+              "publicKey", pagoConfig.getPublicKey(),
               "countryCode", "AR",
-              "preferredPaymentMethod", "credit_card"
+              "preferredPaymentMethods", java.util.List.of("credit_card", "debit_card")
       ));
     } catch (Exception e) {
       log.error("Error al obtener configuración de pagos", e);
