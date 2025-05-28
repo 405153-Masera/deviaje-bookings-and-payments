@@ -1,5 +1,9 @@
 package masera.deviajebookingsandpayments.controllers;
 
+import java.sql.Timestamp;
+import java.time.ZonedDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.Data;
 import masera.deviajebookingsandpayments.dtos.ErrorApi;
 import masera.deviajebookingsandpayments.exceptions.AmadeusApiException;
@@ -10,11 +14,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.sql.Timestamp;
-import java.time.ZonedDateTime;
-import java.util.HashMap;
-import java.util.Map;
 
 
 /**
