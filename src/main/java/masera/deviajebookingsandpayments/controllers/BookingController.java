@@ -1,5 +1,9 @@
 package masera.deviajebookingsandpayments.controllers;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
@@ -7,11 +11,10 @@ import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Controlador para operaciones generales sobre reservas.
@@ -55,7 +58,7 @@ public class BookingController {
    * @return detalles de la reserva
    */
   @GetMapping("/{id}")
-  public ResponseEntity<BookingResponseDto> getBooking(@PathVariable Long id) {
+  public ResponseEntity<BookingResponseDto> getBooking(@PathVariable UUID id) {
     log.info("Obteniendo detalles de la reserva: {}", id);
 
     try {

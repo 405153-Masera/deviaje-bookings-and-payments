@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Repositorio para acceder a los datos de FlightBooking.
@@ -37,7 +38,7 @@ public interface FlightBookingRepository extends JpaRepository<FlightBooking, Lo
    * @param bookingId ID de la reserva principal
    * @return Lista de reservas de vuelo
    */
-  List<FlightBooking> findByBookingId(Long bookingId);
+  List<FlightBooking> findByBookingId(UUID bookingId);
 
   /**
    * Encuentra reservas de vuelo por fecha de salida.

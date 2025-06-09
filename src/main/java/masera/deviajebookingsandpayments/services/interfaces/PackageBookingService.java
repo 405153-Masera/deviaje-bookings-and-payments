@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Interfaz para el servicio de reservas de paquetes.
@@ -38,7 +39,7 @@ public interface PackageBookingService {
    * @param bookingId ID de la reserva
    * @return detalles de la reserva
    */
-  BookingResponseDto getPackageBookingDetails(Long bookingId);
+  BookingResponseDto getPackageBookingDetails(UUID bookingId);
 
   /**
    * Cancela una reserva de paquete.
@@ -46,7 +47,7 @@ public interface PackageBookingService {
    * @param bookingId ID de la reserva a cancelar
    * @return respuesta con el resultado de la cancelación
    */
-  BookAndPayResponseDto cancelBooking(Long bookingId);
+  BookAndPayResponseDto cancelBooking(UUID bookingId);
 
   /**
    * Verifica disponibilidad y precio de un paquete.

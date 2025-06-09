@@ -1,12 +1,14 @@
 package masera.deviajebookingsandpayments.dtos.bookings.flights;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
+/**
+ * DTO que representa el precio de una oferta de vuelo.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

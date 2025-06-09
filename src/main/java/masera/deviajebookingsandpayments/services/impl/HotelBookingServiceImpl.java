@@ -3,10 +3,7 @@ package masera.deviajebookingsandpayments.services.impl;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -265,7 +262,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   /**
    * Actualiza el pago con el ID de la reserva.
    */
-  private void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
+  private void updatePaymentWithBookingId(Long paymentId, UUID bookingId) {
     Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
     if (paymentOpt.isPresent()) {
       Payment payment = paymentOpt.get();

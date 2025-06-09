@@ -28,10 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -153,7 +150,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
   }
 
   @Override
-  public BookingResponseDto getPackageBookingDetails(Long bookingId) {
+  public BookingResponseDto getPackageBookingDetails(UUID bookingId) {
     log.info("Obteniendo detalles de reserva de paquete: {}", bookingId);
 
     Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);
@@ -166,7 +163,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
   @Override
   @Transactional
-  public BookAndPayResponseDto cancelBooking(Long bookingId) {
+  public BookAndPayResponseDto cancelBooking(UUID bookingId) {
     log.info("Cancelando reserva de paquete: {}", bookingId);
 
     Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);

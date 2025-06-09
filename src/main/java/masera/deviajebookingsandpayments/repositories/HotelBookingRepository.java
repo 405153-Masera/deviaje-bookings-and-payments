@@ -3,6 +3,8 @@ package masera.deviajebookingsandpayments.repositories;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+
 import masera.deviajebookingsandpayments.entities.HotelBooking;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -36,7 +38,7 @@ public interface HotelBookingRepository extends JpaRepository<HotelBooking, Long
    * @param bookingId ID de la reserva principal
    * @return Lista de reservas de hotel
    */
-  List<HotelBooking> findByBookingId(Long bookingId);
+  List<HotelBooking> findByBookingId(UUID bookingId);
 
   /**
    * Encuentra reservas de hotel por código de destino.

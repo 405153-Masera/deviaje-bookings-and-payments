@@ -1,12 +1,14 @@
 package masera.deviajebookingsandpayments.dtos.bookings.flights;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
+/**
+ * DTO que el segmento de un itinerario de vuelo.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,6 +23,7 @@ public class SegmentDto {
   private String duration;
   private String id;
   private Integer numberOfStops;
+  @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
   private Boolean blacklistedInEU;
   private List<Co2EmissionDto> co2Emissions;
 }

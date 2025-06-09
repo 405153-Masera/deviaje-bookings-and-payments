@@ -2,6 +2,8 @@ package masera.deviajebookingsandpayments.repositories;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+
 import masera.deviajebookingsandpayments.entities.Payment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -18,7 +20,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
    * @param bookingId ID de la reserva
    * @return Lista de pagos de la reserva
    */
-  List<Payment> findByBookingId(Long bookingId);
+  List<Payment> findByBookingId(UUID bookingId);
 
   /**
    * Encuentra pagos por ID externo de pago.

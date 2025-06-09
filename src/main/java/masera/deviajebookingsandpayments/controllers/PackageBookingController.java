@@ -1,6 +1,10 @@
 package masera.deviajebookingsandpayments.controllers;
 
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.bookings.CreatePackageBookingRequestDto;
@@ -9,9 +13,13 @@ import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.PackageBookingService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
-import java.util.Map;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Controlador para reservas de paquetes (vuelo + hotel).
@@ -68,7 +76,9 @@ public class PackageBookingController {
    * @return lista de reservas
    */
   @GetMapping("/client/{clientId}")
-  public ResponseEntity<List<BookingResponseDto>> getClientPackageBookings(@PathVariable Long clientId) {
+  public ResponseEntity<List<BookingResponseDto>> getClientPackageBookings(
+          @PathVariable Long clientId) {
+
     log.info("Obteniendo reservas de paquetes para el cliente: {}", clientId);
 
     try {
@@ -87,7 +97,7 @@ public class PackageBookingController {
    * @return detalles de la reserva
    */
   @GetMapping("/{id}")
-  public ResponseEntity<BookingResponseDto> getPackageBooking(@PathVariable Long id) {
+  public ResponseEntity<BookingResponseDto> getPackageBooking(@PathVariable UUID id) {
     log.info("Obteniendo detalles de reserva de paquete: {}", id);
 
     try {
@@ -106,7 +116,7 @@ public class PackageBookingController {
    * @return respuesta de cancelación
    */
   @PutMapping("/{id}/cancel")
-  public ResponseEntity<BookAndPayResponseDto> cancelPackageBooking(@PathVariable Long id) {
+  public ResponseEntity<BookAndPayResponseDto> cancelPackageBooking(@PathVariable UUID id) {
     log.info("Cancelando reserva de paquete: {}", id);
 
     try {
@@ -137,11 +147,15 @@ public class PackageBookingController {
    * @return información actualizada del paquete
    */
   @PostMapping("/verify-price")
-  public ResponseEntity<Map<String, Object>> verifyPackagePrice(@RequestBody Map<String, Object> packageDetails) {
+  public ResponseEntity<Map<String, Object>> verifyPackagePrice(
+          @RequestBody Map<String, Object> packageDetails) {
+
     log.info("Verificando precio y disponibilidad de paquete");
 
     try {
-      Map<String, Object> verifiedPackage = packageBookingService.verifyPackagePrice(packageDetails);
+      Map<String, Object> verifiedPackage =
+              packageBookingService.verifyPackagePrice(packageDetails);
+
       return ResponseEntity.ok(verifiedPackage);
     } catch (Exception e) {
       log.error("Error al verificar precio de paquete: {}", e.getMessage());

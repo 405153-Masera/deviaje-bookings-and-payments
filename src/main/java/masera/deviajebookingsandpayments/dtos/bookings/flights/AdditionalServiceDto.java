@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * DTO que representa un servicio adicional para un vuelo.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

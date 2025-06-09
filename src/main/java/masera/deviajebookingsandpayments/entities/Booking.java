@@ -1,13 +1,27 @@
 package masera.deviajebookingsandpayments.entities;
 
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * Entidad principal de reservas unificada.
@@ -21,10 +35,10 @@ import java.util.List;
 public class Booking {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @Column(columnDefinition = "CHAR(36)")
+  private UUID id;
 
-  @Column(name = "client_id", nullable = false)
+  @Column(name = "client_id")
   private Long clientId;
 
   @Column(name = "agent_id")
@@ -56,8 +70,11 @@ public class Booking {
   @Builder.Default
   private BigDecimal taxes = BigDecimal.ZERO;
 
-  @Column(columnDefinition = "TEXT")
-  private String notes;
+  @Column(length = 20)
+  private String phone;
+
+  @Column(length = 100)
+  private String email;
 
   @Column(name = "created_datetime")
   private LocalDateTime createdDatetime;
@@ -88,6 +105,10 @@ public class Booking {
   protected void onCreate() {
     this.createdDatetime = LocalDateTime.now();
     this.lastUpdatedDatetime = LocalDateTime.now();
+
+    if (this.id == null) {
+      this.id = UUID.randomUUID();
+    }
   }
 
   @PreUpdate

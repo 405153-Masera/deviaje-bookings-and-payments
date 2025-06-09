@@ -1,9 +1,10 @@
 package masera.deviajebookingsandpayments.services.impl;
 
-import java.util.Map;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.clients.FlightClient;
@@ -48,11 +49,9 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   public BookAndPayResponseDto bookAndPay(CreateFlightBookingRequestDto bookingRequest,
                                           PaymentRequestDto paymentRequest) {
 
-    log.info("Iniciando proceso de reserva y pago para vuelo. Cliente: {}", bookingRequest.getClientId());
-
+    log.info("Iniciando proceso de reserva y pago para vuelo. Cliente: {}",
+            bookingRequest.getClientId());
     try {
-      FlightOfferDto flightOffer = bookingRequest.getFlightOffer();
-
       // 1. Procesar pago PRIMERO
       log.info("Procesando pago para reserva de vuelo");
       PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
@@ -80,6 +79,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
       // 4. Guardar en nuestra base de datos
       log.info("Guardando reserva en base de datos");
+      FlightOfferDto flightOffer = bookingRequest.getFlightOffer();
       Booking savedBooking = saveBookingInDatabase(bookingRequest,
               flightOffer, paymentResult, externalId);
 
@@ -105,7 +105,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     Optional<FlightBooking> flightBooking = flightBookingRepository.findById(bookingId);
 
     if (flightBooking.isEmpty()) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Reserva de vuelo no encontrada: " + bookingId);
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+              "Reserva de vuelo no encontrada: " + bookingId);
     }
 
     return convertToFlightBookingResponse(flightBooking.get());
@@ -239,7 +240,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   /**
    * Actualiza el pago con el ID de la reserva.
    */
-  private void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
+  private void updatePaymentWithBookingId(Long paymentId, UUID bookingId) {
     Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
     if (paymentOpt.isPresent()) {
       Payment payment = paymentOpt.get();
@@ -265,6 +266,15 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     return "EXT" + System.currentTimeMillis(); // Fallback temporal
   }
 
+  /**
+   * Guarda la reserva de vuelo y el pago en la base de datos.
+   *
+   * @param request datos de la reserva
+   * @param flightOffer datos de la oferta de vuelo
+   * @param payment datos del pago
+   * @param externalId ID externo de la reserva en Amadeus
+   * @return la reserva guardada
+   */
   @Transactional
   protected Booking saveBookingInDatabase(CreateFlightBookingRequestDto request,
                                           FlightOfferDto flightOffer,
@@ -282,6 +292,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .currency(payment.getCurrency())
             .discount(BigDecimal.ZERO) // VER MAS ADELANTE DE APLICAR DESCUENTOS PARA MEMBRESIA
             .taxes(calculateTaxes(flightOffer, payment.getAmount()))
+            .email(request.getTravelers().getFirst().getContact().getEmailAddress())
+            .phone(request.getTravelers().getFirst().getContact().getPhones().getFirst().getNumber())
             .build();
 
     Booking savedBooking = bookingRepository.save(booking);

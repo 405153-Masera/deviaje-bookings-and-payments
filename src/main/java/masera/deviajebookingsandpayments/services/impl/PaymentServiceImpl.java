@@ -2,6 +2,7 @@ package masera.deviajebookingsandpayments.services.impl;
 
 
 import com.mercadopago.MercadoPagoConfig;
+import com.mercadopago.client.common.IdentificationRequest;
 import com.mercadopago.client.payment.PaymentClient;
 import com.mercadopago.client.payment.PaymentCreateRequest;
 import com.mercadopago.client.payment.PaymentPayerRequest;
@@ -12,6 +13,7 @@ import com.mercadopago.resources.payment.PaymentRefund;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.configs.PagoConfig;
@@ -80,6 +82,17 @@ public class PaymentServiceImpl implements PaymentService {
     if (paymentRequest.getPayer() != null && paymentRequest.getPayer().getEmail() != null) {
       payerBuilder = PaymentPayerRequest.builder()
               .email(paymentRequest.getPayer().getEmail());
+
+      // SOLO AGREGAR DNI SI ESTÁ DISPONIBLE
+      if (paymentRequest.getPayer().getIdentification() != null
+              && paymentRequest.getPayer().getIdentificationType() != null) {
+        IdentificationRequest identification = IdentificationRequest.builder()
+                .type(paymentRequest.getPayer().getIdentificationType())
+                .number(paymentRequest.getPayer().getIdentification())
+                .build();
+
+        payerBuilder.identification(identification);
+      }
     }
 
     // Crear el request de pago usando el builder pattern
@@ -194,7 +207,7 @@ public class PaymentServiceImpl implements PaymentService {
 
   @Override
   @Transactional
-  public PaymentResponseDto processRefundForBooking(Long bookingId) {
+  public PaymentResponseDto processRefundForBooking(UUID bookingId) {
     log.info("Procesando reembolso para reserva ID: {}", bookingId);
 
     // Buscar todos los pagos de la reserva

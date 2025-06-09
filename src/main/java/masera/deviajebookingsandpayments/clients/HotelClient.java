@@ -59,10 +59,7 @@ public class HotelClient {
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Verificación de tarifa completada exitosamente"))
             .doOnError(error -> log.error("Error al verificar tarifa: {}", error.getMessage()))
-            .onErrorResume(WebClientResponseException.class, e -> {
-              log.error("Error de respuesta de Hotelbeds: {}", e.getResponseBodyAsString());
-              throw errorHandler.handleAmadeusError(e);
-            });
+            .onErrorResume(WebClientResponseException.class, this::apply);
   }
 
   /**
@@ -84,10 +81,7 @@ public class HotelClient {
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Reserva creada exitosamente"))
             .doOnError(error -> log.error("Error al crear reserva: {}", error.getMessage()))
-            .onErrorResume(WebClientResponseException.class, e -> {
-              log.error("Error de respuesta de Hotelbeds: {}", e.getResponseBodyAsString());
-              throw errorHandler.handleAmadeusError(e);
-            });
+            .onErrorResume(WebClientResponseException.class, this::apply);
   }
 
 
@@ -107,11 +101,9 @@ public class HotelClient {
             .retrieve()
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Detalles de reserva obtenidos exitosamente"))
-            .doOnError(error -> log.error("Error al obtener detalles de reserva: {}", error.getMessage()))
-            .onErrorResume(WebClientResponseException.class, e -> {
-              log.error("Error de respuesta de Hotelbeds: {}", e.getResponseBodyAsString());
-              throw errorHandler.handleAmadeusError(e);
-            });
+            .doOnError(error -> log.error("Error al obtener detalles de reserva: {}",
+                            error.getMessage()))
+            .onErrorResume(WebClientResponseException.class, this::apply);
   }
 
   /**
@@ -131,10 +123,7 @@ public class HotelClient {
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Reserva cancelada exitosamente"))
             .doOnError(error -> log.error("Error al cancelar reserva: {}", error.getMessage()))
-            .onErrorResume(WebClientResponseException.class, e -> {
-              log.error("Error de respuesta de Hotelbeds: {}", e.getResponseBodyAsString());
-              throw errorHandler.handleAmadeusError(e);
-            });
+            .onErrorResume(WebClientResponseException.class, this::apply);
   }
 
   private void addHotelbedsHeaders(HttpHeaders headers) {
@@ -145,5 +134,10 @@ public class HotelClient {
     headers.set("Api-Key", hotelbedsConfig.getApiKey());
     headers.set("X-Signature", signature);
     headers.set("Accept", "application/json");
+  }
+
+  private Mono<?> apply(WebClientResponseException e) {
+    log.error("Error de respuesta de Hotelbeds: {}", e.getResponseBodyAsString());
+    throw errorHandler.handleAmadeusError(e);
   }
 }

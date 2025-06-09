@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * DTO que representa tasas adicionales.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
