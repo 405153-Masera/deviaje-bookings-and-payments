@@ -314,20 +314,6 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .build();
 
     flightBookingRepository.save(flightBooking);
-
-    // 3. Guardar el pago
-    Payment paymentEntity = Payment.builder()
-            .booking(savedBooking)
-            .amount(payment.getAmount())
-            .currency(payment.getCurrency())
-            .method(payment.getMethod())
-            .paymentProvider(payment.getPaymentProvider())
-            .externalPaymentId(payment.getExternalPaymentId())
-            .status(Payment.PaymentStatus.valueOf(payment.getStatus()))
-            .build();
-
-    paymentRepository.save(paymentEntity);
-
     return savedBooking;
   }
 
