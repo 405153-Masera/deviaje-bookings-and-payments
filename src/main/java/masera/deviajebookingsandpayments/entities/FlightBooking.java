@@ -37,10 +37,10 @@ public class FlightBooking {
   private String destination;
 
   @Column(name = "departure_date", nullable = false)
-  private LocalDateTime departureDate;
+  private String departureDate;
 
   @Column(name = "return_date")
-  private LocalDateTime returnDate;
+  private String returnDate;
 
   @Column(length = 2, nullable = false)
   private String carrier; // Código IATA de aerolínea

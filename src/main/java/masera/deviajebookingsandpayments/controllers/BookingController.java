@@ -58,7 +58,7 @@ public class BookingController {
    * @return detalles de la reserva
    */
   @GetMapping("/{id}")
-  public ResponseEntity<BookingResponseDto> getBooking(@PathVariable UUID id) {
+  public ResponseEntity<BookingResponseDto> getBooking(@PathVariable Long id) {
     log.info("Obteniendo detalles de la reserva: {}", id);
 
     try {

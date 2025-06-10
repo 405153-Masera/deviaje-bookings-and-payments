@@ -15,9 +15,9 @@ public class DocumentDto {
   private String documentType;
   private String birthPlace;
   private String issuanceLocation;
-  private LocalDate issuanceDate;
+  private String issuanceDate;
   private String number;
-  private LocalDate expiryDate;
+  private String expiryDate;
   private String issuanceCountry;
   private String validityCountry;
   private String nationality;

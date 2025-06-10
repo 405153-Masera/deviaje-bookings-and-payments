@@ -3,7 +3,6 @@ package masera.deviajebookingsandpayments.services.interfaces;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 
-import java.util.UUID;
 
 /**
  * Interfaz para el servicio de pagos.
@@ -32,7 +31,7 @@ public interface PaymentService {
    * @param bookingId ID de la reserva
    * @return resultado del reembolso
    */
-  PaymentResponseDto processRefundForBooking(UUID bookingId);
+  PaymentResponseDto processRefundForBooking(Long bookingId);
 
   /**
    * Verifica el estado de un pago.

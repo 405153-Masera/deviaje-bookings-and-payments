@@ -24,7 +24,7 @@ public class Payment {
   private Long id;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "booking_id", nullable = false)
+  @JoinColumn(name = "booking_id")
   private Booking booking;
 
   @Column(nullable = false)
@@ -34,7 +34,7 @@ public class Payment {
   @Builder.Default
   private String currency = "ARS";
 
-  @Column(length = 50, nullable = false)
+  @Column(length = 50)
   private String method; // CREDIT_CARD, MERCADO_PAGO, TRANSFER, etc.
 
   @Column(name = "payment_provider", length = 50)

@@ -1,5 +1,6 @@
 package masera.deviajebookingsandpayments.dtos.bookings.flights;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +16,7 @@ public class FareDetailsBySegmentDto {
   private String fareBasis;
   private String brandedFare;
   private String brandedFareLabel; // Agregado del GET
+  @JsonProperty("class")
   private String classCode;
   private String sliceDiceIndicator;
   private IncludedCheckedBagsDto includedCheckedBags;

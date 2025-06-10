@@ -1,10 +1,8 @@
 package masera.deviajebookingsandpayments.services.impl;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.clients.FlightClient;
@@ -240,7 +238,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   /**
    * Actualiza el pago con el ID de la reserva.
    */
-  private void updatePaymentWithBookingId(Long paymentId, UUID bookingId) {
+  private void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
     Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
     if (paymentOpt.isPresent()) {
       Payment payment = paymentOpt.get();
@@ -360,7 +358,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     return "XXX"; // Código de fallback
   }
 
-  private LocalDateTime extractDepartureDate(FlightOfferDto offer) {
+  private String extractDepartureDate(FlightOfferDto offer) {
     // Extraer fecha de salida del primer segmento del primer itinerario
     if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
             && offer.getItineraries().get(0).getSegments() != null
@@ -369,10 +367,10 @@ public class FlightBookingServiceImpl implements FlightBookingService {
         return offer.getItineraries().get(0).getSegments().get(0).getDeparture().getAt();
       }
     }
-    return LocalDateTime.now().plusDays(7); // Fecha de fallback
+    return "2025-06-16T10:00:00"; // Fecha de fallback
   }
 
-  private LocalDateTime extractReturnDate(FlightOfferDto offer) {
+  private String extractReturnDate(FlightOfferDto offer) {
     // Extraer fecha de retorno (si existe)
     if (offer != null && offer.getItineraries() != null && offer.getItineraries().size() > 1
             && offer.getItineraries().get(1).getSegments() != null

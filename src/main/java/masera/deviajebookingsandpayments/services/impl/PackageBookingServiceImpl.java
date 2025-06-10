@@ -150,7 +150,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
   }
 
   @Override
-  public BookingResponseDto getPackageBookingDetails(UUID bookingId) {
+  public BookingResponseDto getPackageBookingDetails(Long bookingId) {
     log.info("Obteniendo detalles de reserva de paquete: {}", bookingId);
 
     Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);
@@ -163,7 +163,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
   @Override
   @Transactional
-  public BookAndPayResponseDto cancelBooking(UUID bookingId) {
+  public BookAndPayResponseDto cancelBooking(Long bookingId) {
     log.info("Cancelando reserva de paquete: {}", bookingId);
 
     Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);
@@ -396,7 +396,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
     return "BCN"; // Código de fallback
   }
 
-  private LocalDateTime extractDepartureDate(FlightOfferDto offer) {
+  private String extractDepartureDate(FlightOfferDto offer) {
     // Extraer fecha de salida del primer segmento del primer itinerario
     if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
             && offer.getItineraries().get(0).getSegments() != null
@@ -405,10 +405,10 @@ public class PackageBookingServiceImpl implements PackageBookingService {
         return offer.getItineraries().get(0).getSegments().get(0).getDeparture().getAt();
       }
     }
-    return LocalDateTime.now().plusDays(30); // Fecha de fallback
+    return "2025-06-30T10:00:00"; // Fecha de fallback
   }
 
-  private LocalDateTime extractReturnDate(FlightOfferDto offer) {
+  private String extractReturnDate(FlightOfferDto offer) {
     // Extraer fecha de retorno (si existe)
     if (offer != null && offer.getItineraries() != null && offer.getItineraries().size() > 1
             && offer.getItineraries().get(1).getSegments() != null
@@ -418,7 +418,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
         return offer.getItineraries().get(1).getSegments().get(lastIndex).getArrival().getAt();
       }
     }
-    return LocalDateTime.now().plusDays(35); // Fecha de fallback para vuelos de ida y vuelta
+    return "2025-07-05T18:00:00"; // Fecha de fallback para vuelos de ida y vuelta
   }
 
   private String extractCarrier(FlightOfferDto offer) {

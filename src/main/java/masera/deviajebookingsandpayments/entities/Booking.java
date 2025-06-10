@@ -35,8 +35,8 @@ import lombok.NoArgsConstructor;
 public class Booking {
 
   @Id
-  @Column(columnDefinition = "CHAR(36)")
-  private UUID id;
+  @GeneratedValue(strategy = GenerationType.IDENTITY) // Esto hace el auto increment
+  private Long id;  // Cambiar de UUID a Long
 
   @Column(name = "client_id")
   private Long clientId;
@@ -106,9 +106,6 @@ public class Booking {
     this.createdDatetime = LocalDateTime.now();
     this.lastUpdatedDatetime = LocalDateTime.now();
 
-    if (this.id == null) {
-      this.id = UUID.randomUUID();
-    }
   }
 
   @PreUpdate

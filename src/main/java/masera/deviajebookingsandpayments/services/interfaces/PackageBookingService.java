@@ -1,14 +1,12 @@
 package masera.deviajebookingsandpayments.services.interfaces;
 
+import java.util.List;
+import java.util.Map;
 import masera.deviajebookingsandpayments.dtos.bookings.CreatePackageBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * Interfaz para el servicio de reservas de paquetes.
@@ -39,7 +37,7 @@ public interface PackageBookingService {
    * @param bookingId ID de la reserva
    * @return detalles de la reserva
    */
-  BookingResponseDto getPackageBookingDetails(UUID bookingId);
+  BookingResponseDto getPackageBookingDetails(Long bookingId);
 
   /**
    * Cancela una reserva de paquete.
@@ -47,7 +45,7 @@ public interface PackageBookingService {
    * @param bookingId ID de la reserva a cancelar
    * @return respuesta con el resultado de la cancelación
    */
-  BookAndPayResponseDto cancelBooking(UUID bookingId);
+  BookAndPayResponseDto cancelBooking(Long bookingId);
 
   /**
    * Verifica disponibilidad y precio de un paquete.

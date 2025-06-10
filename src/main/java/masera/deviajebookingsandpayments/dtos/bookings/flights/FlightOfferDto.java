@@ -1,6 +1,5 @@
 package masera.deviajebookingsandpayments.dtos.bookings.flights;
 
-import java.time.LocalDate;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +23,7 @@ public class FlightOfferDto {
   private Boolean oneWay; // Agregado del GET
   private Boolean isUpsellOffer; // Agregado del GET
   private Boolean paymentCardRequired;
-  private LocalDate lastTicketingDate;
+  private String lastTicketingDate;
   private String lastTicketingDateTime; // Agregado del GET
   private Integer numberOfBookableSeats; // Agregado del GET
   private List<ItineraryDto> itineraries;

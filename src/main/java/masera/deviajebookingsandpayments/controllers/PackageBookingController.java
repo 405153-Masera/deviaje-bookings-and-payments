@@ -97,7 +97,7 @@ public class PackageBookingController {
    * @return detalles de la reserva
    */
   @GetMapping("/{id}")
-  public ResponseEntity<BookingResponseDto> getPackageBooking(@PathVariable UUID id) {
+  public ResponseEntity<BookingResponseDto> getPackageBooking(@PathVariable Long id) {
     log.info("Obteniendo detalles de reserva de paquete: {}", id);
 
     try {
@@ -116,7 +116,7 @@ public class PackageBookingController {
    * @return respuesta de cancelación
    */
   @PutMapping("/{id}/cancel")
-  public ResponseEntity<BookAndPayResponseDto> cancelPackageBooking(@PathVariable UUID id) {
+  public ResponseEntity<BookAndPayResponseDto> cancelPackageBooking(@PathVariable Long id) {
     log.info("Cancelando reserva de paquete: {}", id);
 
     try {

@@ -20,7 +20,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
    * @param bookingId ID de la reserva
    * @return Lista de pagos de la reserva
    */
-  List<Payment> findByBookingId(UUID bookingId);
+  List<Payment> findByBookingId(Long bookingId);
 
   /**
    * Encuentra pagos por ID externo de pago.

@@ -16,5 +16,5 @@ import lombok.NoArgsConstructor;
 public class DepartureArrivalDto {
   private String iataCode;
   private String terminal;
-  private LocalDateTime at;
+  private String at;
 }

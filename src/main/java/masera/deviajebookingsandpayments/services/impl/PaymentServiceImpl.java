@@ -60,8 +60,14 @@ public class PaymentServiceImpl implements PaymentService {
       initMercadoPagoConfig();
       return processDirectPayment(paymentRequest);
 
+    } catch (MPApiException e) {
+      log.error("Error específico de Mercado Pago API", e);
+      return PaymentResponseDto.rejected(
+              "MP_API_ERROR",
+              "Error de Mercado Pago: " + e.getMessage() + " (Código: " + e.getStatusCode() + ")"
+      );
     } catch (Exception e) {
-      log.error("Error al procesar pago con Mercado Pago", e);
+      log.error("Error general al procesar pago", e);
       return PaymentResponseDto.rejected(
               "PROCESSING_ERROR",
               "Error al procesar el pago: " + e.getMessage()
@@ -79,10 +85,12 @@ public class PaymentServiceImpl implements PaymentService {
 
     // Crear el builder para PaymentPayerRequest si tenemos datos del pagador
     PaymentPayerRequest.PaymentPayerRequestBuilder payerBuilder = null;
+    log.info("PAYER DATOS: {}", paymentRequest.getPayer());
     if (paymentRequest.getPayer() != null && paymentRequest.getPayer().getEmail() != null) {
       payerBuilder = PaymentPayerRequest.builder()
               .email(paymentRequest.getPayer().getEmail());
 
+      log.info("DNI: {}", paymentRequest.getPayer().getIdentification());
       // SOLO AGREGAR DNI SI ESTÁ DISPONIBLE
       if (paymentRequest.getPayer().getIdentification() != null
               && paymentRequest.getPayer().getIdentificationType() != null) {
@@ -109,43 +117,61 @@ public class PaymentServiceImpl implements PaymentService {
     }
     PaymentCreateRequest paymentCreateRequest = paymentBuilder.build();
 
+    log.info("Enviando request a Mercado Pago: {}", paymentCreateRequest);
+
     // Procesar el pago
-    com.mercadopago.resources.payment.Payment createdPayment =
-            paymentClient.create(paymentCreateRequest);
+    try {
+      com.mercadopago.resources.payment.Payment createdPayment =
+              paymentClient.create(paymentCreateRequest);
 
-    // Guardar en nuestra base de datos
-    masera.deviajebookingsandpayments.entities.Payment paymentEntity =
-                  masera.deviajebookingsandpayments.entities.Payment.builder()
-            .amount(paymentRequest.getAmount())
-            .currency(paymentRequest.getCurrency())
-            .method(paymentRequest.getPaymentMethod())
-            .paymentProvider("MERCADO_PAGO")
-            .externalPaymentId(createdPayment.getId().toString())
-            .status(mapMercadoPagoStatus(createdPayment.getStatus()))
-            .date(LocalDateTime.now())
-            .build();
+      // Log de respuesta exitosa
+      log.info("Pago procesado exitosamente: ID={}, Status={}",
+              createdPayment.getId(), createdPayment.getStatus());
 
-    masera.deviajebookingsandpayments.entities.Payment savedPayment =
-            paymentRepository.save(paymentEntity);
+      // Guardar en nuestra base de datos
+      masera.deviajebookingsandpayments.entities.Payment paymentEntity =
+              masera.deviajebookingsandpayments.entities.Payment.builder()
+                      .amount(paymentRequest.getAmount())
+                      .currency(paymentRequest.getCurrency())
+                      .method(paymentRequest.getPaymentMethod())
+                      .paymentProvider("MERCADO_PAGO")
+                      .externalPaymentId(createdPayment.getId().toString())
+                      .status(mapMercadoPagoStatus(createdPayment.getStatus()))
+                      .date(LocalDateTime.now())
+                      .build();
 
-    if ("approved".equals(createdPayment.getStatus())) {
-      return PaymentResponseDto.approved(
-              savedPayment.getId(),
-              createdPayment.getId().toString(),
-              paymentRequest.getAmount(),
-              paymentRequest.getCurrency()
-      );
-    } else {
-      return PaymentResponseDto.builder()
-              .id(savedPayment.getId())
-              .externalPaymentId(createdPayment.getId().toString())
-              .amount(paymentRequest.getAmount())
-              .currency(paymentRequest.getCurrency())
-              .status(createdPayment.getStatus().toUpperCase())
-              .errorCode(createdPayment.getStatusDetail())
-              .errorMessage("Estado del pago: " + createdPayment.getStatus())
-              .date(LocalDateTime.now())
-              .build();
+      masera.deviajebookingsandpayments.entities.Payment savedPayment =
+              paymentRepository.save(paymentEntity);
+
+      if ("approved".equals(createdPayment.getStatus())) {
+        return PaymentResponseDto.approved(
+                savedPayment.getId(),
+                createdPayment.getId().toString(),
+                paymentRequest.getAmount(),
+                paymentRequest.getCurrency()
+        );
+      } else {
+        return PaymentResponseDto.builder()
+                .id(savedPayment.getId())
+                .externalPaymentId(createdPayment.getId().toString())
+                .amount(paymentRequest.getAmount())
+                .currency(paymentRequest.getCurrency())
+                .status(createdPayment.getStatus().toUpperCase())
+                .errorCode(createdPayment.getStatusDetail())
+                .errorMessage("Estado del pago: " + createdPayment.getStatus())
+                .date(LocalDateTime.now())
+                .build();
+      }
+    } catch (MPApiException e) {
+      // Log detallado del error de Mercado Pago
+      log.error("Error de API de Mercado Pago:");
+      log.error("Status Code: {}", e.getStatusCode());
+      log.error("Error: {}", e.getApiResponse().getContent());
+      log.error("Message: {}", e.getMessage());
+      log.error("Cause: {}", e.getCause());
+
+      // Re-lanzar la excepción para que sea manejada por el método padre
+      throw e;
     }
   }
 
@@ -207,7 +233,7 @@ public class PaymentServiceImpl implements PaymentService {
 
   @Override
   @Transactional
-  public PaymentResponseDto processRefundForBooking(UUID bookingId) {
+  public PaymentResponseDto processRefundForBooking(Long bookingId) {
     log.info("Procesando reembolso para reserva ID: {}", bookingId);
 
     // Buscar todos los pagos de la reserva

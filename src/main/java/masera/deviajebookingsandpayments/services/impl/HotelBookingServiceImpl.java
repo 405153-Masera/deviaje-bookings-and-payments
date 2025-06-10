@@ -262,7 +262,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   /**
    * Actualiza el pago con el ID de la reserva.
    */
-  private void updatePaymentWithBookingId(Long paymentId, UUID bookingId) {
+  private void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
     Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
     if (paymentOpt.isPresent()) {
       Payment payment = paymentOpt.get();

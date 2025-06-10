@@ -39,7 +39,7 @@ public class FlightClient {
    * @return oferta de vuelo con precio actualizado
    */
   public Mono<Object> verifyFlightOfferPrice(Object flightOffer) {
-    log.info("Verificando el precio de la oferta de vuelo");
+    log.info("Verificando el precio de la oferta de vuelo: {}", flightOffer);
 
     Object requestBody = java.util.Map.of(
             "data", java.util.Map.of(
@@ -59,7 +59,15 @@ public class FlightClient {
             .retrieve()
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Precio verificado para la oferta"))
-            .doOnError(error -> log.error("Error al verificar el precio: {}", error.getMessage()))
+            .doOnError(error -> {
+              if (error instanceof WebClientResponseException) {
+                WebClientResponseException webError = (WebClientResponseException) error;
+                log.error("Error al verificar la oferta - Status: {}, Body: {}",
+                        webError.getStatusCode(), webError.getResponseBodyAsString());
+              } else {
+                log.error("Error al verificar la oferta de vuelo: {}", error.getMessage());
+              }
+            })
             .onErrorResume(WebClientResponseException.class, e -> {
               throw errorHandler.handleAmadeusError(e);
             });
@@ -74,6 +82,8 @@ public class FlightClient {
   public Mono<Object> createFlightOrder(Object bookingData) {
     log.info("Creando reserva de vuelo en Amadeus");
 
+    log.info("datos de reserva: {}", bookingData);
+
     String uri = amadeusConfig.getBaseUrl() + FLIGHT_ORDERS_URL;
     String token = amadeusTokenService.getToken();
 
@@ -85,8 +95,15 @@ public class FlightClient {
             .retrieve()
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Reserva de vuelo creada exitosamente"))
-            .doOnError(error -> log.error("Error al crear reserva de vuelo: {}",
-                                              error.getMessage()))
+            .doOnError(error -> {
+              if (error instanceof WebClientResponseException) {
+                WebClientResponseException webError = (WebClientResponseException) error;
+                log.error("Error al crear reserva de vuelo - Status: {}, Body: {}",
+                        webError.getStatusCode(), webError.getResponseBodyAsString());
+              } else {
+                log.error("Error al crear reserva de vuelo: {}", error.getMessage());
+              }
+            })
             .onErrorResume(WebClientResponseException.class, e -> {
               throw errorHandler.handleAmadeusError(e);
             });

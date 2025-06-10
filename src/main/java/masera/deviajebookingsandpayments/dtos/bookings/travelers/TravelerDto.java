@@ -14,7 +14,7 @@ import java.util.List;
 @Builder
 public class TravelerDto {
   private String id;
-  private LocalDate dateOfBirth;
+  private String dateOfBirth;
   private NameDto name;
   private String gender;
   private ContactDto contact;
