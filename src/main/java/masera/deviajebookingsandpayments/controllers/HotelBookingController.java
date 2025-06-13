@@ -4,8 +4,7 @@ import jakarta.validation.Valid;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import masera.deviajebookingsandpayments.dtos.bookings.hotels.CreateHotelBookingRequestDto;
-import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.BookHotelAndPayRequest;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
@@ -34,19 +33,19 @@ public class HotelBookingController {
    * Endpoint unificado: Reservar hotel y procesar pago.
    *
    * @param request datos de la reserva de hotel
-   * @param paymentRequest datos del pago
    * @return respuesta unificada con reserva y pago
-   *
    */
   @PostMapping("/book-and-pay")
   public ResponseEntity<BookAndPayResponseDto> bookHotelAndPay(
-          @Valid @RequestBody CreateHotelBookingRequestDto request,
-          @Valid @RequestBody PaymentRequestDto paymentRequest) {
+          @Valid @RequestBody BookHotelAndPayRequest request) {
 
-    log.info("Iniciando reserva y pago de hotel para cliente: {}", request.getClientId());
+    log.info("Iniciando reserva y pago de hotel para cliente: {}",
+            request.getBookingRequest().getClientId());
 
     try {
-      BookAndPayResponseDto response = hotelBookingService.bookAndPay(request, paymentRequest);
+      BookAndPayResponseDto response = hotelBookingService.bookAndPay(
+              request.getBookingRequest(),
+              request.getPaymentRequest());
 
       if (response.getSuccess()) {
         log.info("Reserva de hotel exitosa. ID: {}", response.getBooking().getId());
@@ -149,7 +148,7 @@ public class HotelBookingController {
    * @return información actualizada de la tarifa
    *
    */
-  @PostMapping("/check-rates")
+  @GetMapping("/checkrates")
   public ResponseEntity<Object> checkRates(@RequestParam String rateKey) {
 
     log.info("Verificando tarifa de hotel: {}", rateKey);

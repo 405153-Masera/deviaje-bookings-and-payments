@@ -49,6 +49,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
     log.info("Iniciando proceso de reserva y pago para vuelo. Cliente: {}",
             bookingRequest.getClientId());
+
+    log.info("Datos del pagoa: {}", paymentRequest.getAmount());
     try {
       // 1. Procesar pago PRIMERO
       log.info("Procesando pago para reserva de vuelo");

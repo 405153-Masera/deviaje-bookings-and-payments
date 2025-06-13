@@ -58,8 +58,18 @@ public class HotelClient {
             .retrieve()
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Verificación de tarifa completada exitosamente"))
-            .doOnError(error -> log.error("Error al verificar tarifa: {}", error.getMessage()))
-            .onErrorResume(WebClientResponseException.class, this::apply);
+            .doOnError(error -> {
+              if (error instanceof WebClientResponseException) {
+                WebClientResponseException webError = (WebClientResponseException) error;
+                log.error("Error al verificar la oferta - Status: {}, Body: {}",
+                        webError.getStatusCode(), webError.getResponseBodyAsString());
+              } else {
+                log.error("Error al verificar la oferta de vuelo: {}", error.getMessage());
+              }
+            })
+            .onErrorResume(WebClientResponseException.class, e -> {
+              throw errorHandler.handleAmadeusError(e);
+            });
   }
 
   /**

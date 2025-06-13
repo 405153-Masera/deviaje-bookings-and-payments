@@ -17,6 +17,9 @@ public class TravelerDto {
   private String dateOfBirth;
   private NameDto name;
   private String gender;
+
+  private String travelerType; // ADULT, CHILD, INFANT
+  private String associatedAdultId;
   private ContactDto contact;
   private List<DocumentDto> documents;
 }
