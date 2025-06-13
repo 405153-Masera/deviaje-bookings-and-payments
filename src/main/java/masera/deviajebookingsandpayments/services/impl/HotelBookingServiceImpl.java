@@ -225,7 +225,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     // Solicitud completa
     bookingRequest.put("holder", holder);
     bookingRequest.put("rooms", rooms);
-    bookingRequest.put("clientReference", request.getClientReference());
+    bookingRequest.put("clientReference", "Deviaje");
     bookingRequest.put("remark", request.getRemark());
     bookingRequest.put("tolerance", request.getTolerance());
 
