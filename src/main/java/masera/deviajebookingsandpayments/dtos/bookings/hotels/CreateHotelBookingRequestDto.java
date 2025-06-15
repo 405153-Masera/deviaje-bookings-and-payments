@@ -20,7 +20,6 @@ import java.util.List;
 @Builder
 public class CreateHotelBookingRequestDto {
 
-  @NotNull(message = "El ID del cliente es obligatorio")
   private Long clientId;
 
   private Long agentId;
