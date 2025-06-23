@@ -96,7 +96,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
     } catch (Exception e) {
       log.error("Error inesperado en reserva de vuelo", e);
-      return BookAndPayResponseDto.bookingFailed("Error interno: " + e.getMessage());
+      return BookAndPayResponseDto.bookingFailed("Error en el servidor");
     }
   }
 
@@ -155,11 +155,12 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     }
   }
 
-  // MÉTODOS PRIVADOS DE UTILIDAD
+  // =============== MÉTODOS PÚBLICOS PARA REUTILIZACIÓN ===============
 
   /**
    * Prepara los datos de la reserva en el formato requerido por Amadeus.
    */
+  @Override
   public Object prepareAmadeusBookingData(
           CreateFlightBookingRequestDto bookingRequest) {
 
@@ -186,6 +187,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   /**
    * Actualiza el pago con el ID de la reserva.
    */
+  @Override
   public void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
     Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
     if (paymentOpt.isPresent()) {
@@ -205,6 +207,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
    * @param amadeusResponse respuesta de Amadeus
    * @return ID externo o temporal
    */
+  @Override
   public String extractExternalId(Object amadeusResponse) {
     if (amadeusResponse instanceof Map) {
       Map<String, Object> response = (Map<String, Object>) amadeusResponse;
@@ -218,6 +221,32 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     return "EXT" + System.currentTimeMillis(); // Fallback temporal
   }
 
+  @Override
+  public FlightBooking createFlightBookingEntity(CreateFlightBookingRequestDto request,
+                                                 FlightOfferDto flightOffer,
+                                                 Booking booking,
+                                                 String externalId,
+                                                 PricesDto prices) {
+
+    FlightBooking flightBooking = FlightBooking.builder()
+            .booking(booking)
+            .externalId(externalId)
+            .origin(extractOrigin(flightOffer))
+            .destination(extractDestination(flightOffer))
+            .departureDate(extractDepartureDate(flightOffer))
+            .returnDate(extractReturnDate(flightOffer))
+            .carrier(extractCarrier(flightOffer))
+            .adults(countAdults(request))
+            .children(countChildren(request))
+            .infants(countInfants(request))
+            .totalPrice(prices.getGrandTotal())
+            .taxes(prices.getTaxesFlight())
+            .currency(prices.getCurrency())
+            .build();
+
+    return flightBookingRepository.save(flightBooking);
+  }
+
   /**
    * Guarda la reserva de vuelo y el pago en la base de datos.
    *
@@ -227,8 +256,9 @@ public class FlightBookingServiceImpl implements FlightBookingService {
    * @param externalId ID externo de la reserva en Amadeus
    * @return la reserva guardada
    */
+  @Override
   @Transactional
-  protected Booking saveBookingInDatabase(CreateFlightBookingRequestDto request,
+  public Booking saveBookingInDatabase(CreateFlightBookingRequestDto request,
                                           FlightOfferDto flightOffer,
                                           PricesDto payment,
                                           String externalId) {
@@ -251,24 +281,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
     Booking savedBooking = bookingRepository.save(booking);
 
-    // 2. Crear flight booking
-    FlightBooking flightBooking = FlightBooking.builder()
-            .booking(savedBooking)
-            .externalId(externalId)
-            .origin(extractOrigin(flightOffer))
-            .destination(extractDestination(flightOffer))
-            .departureDate(extractDepartureDate(flightOffer))
-            .returnDate(extractReturnDate(flightOffer))
-            .carrier(extractCarrier(flightOffer))
-            .adults(countAdults(request))
-            .children(countChildren(request))
-            .infants(countInfants(request))
-            .totalPrice(payment.getGrandTotal())
-            .taxes(payment.getTaxesFlight())
-            .currency(payment.getCurrency()) //Solo faltaría la política de cancelación
-            .build();
-
-    flightBookingRepository.save(flightBooking);
+    createFlightBookingEntity(request, flightOffer, savedBooking, externalId, payment);
     return savedBooking;
   }
 
@@ -279,6 +292,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
    * @param offer la oferta de vuelo
    * @return el código IATA del origen o "XXX" si no se encuentra
    */
+  @Override
   public String extractOrigin(FlightOfferDto offer) {
     // Extraer origen del primer segmento del primer itinerario
     if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
@@ -302,6 +316,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     return "XXX"; // Código de fallback
   }
 
+  @Override
   public String extractDepartureDate(FlightOfferDto offer) {
     // Extraer fecha de salida del primer segmento del primer itinerario
     if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
@@ -315,6 +330,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     return "2025-06-16T10:00:00"; // Fecha de fallback
   }
 
+  @Override
   public String extractReturnDate(FlightOfferDto offer) {
     // Extraer fecha de retorno (si existe)
     if (offer != null && offer.getItineraries() != null && offer.getItineraries().size() > 1
@@ -328,6 +344,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     return null; // Puede ser null para vuelos solo de ida
   }
 
+  @Override
   public String extractCarrier(FlightOfferDto offer) {
     // Extraer aerolínea principal del primer segmento
     if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
@@ -338,28 +355,33 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     return "XX"; // Código de fallback
   }
 
+  @Override
   public Integer countAdults(CreateFlightBookingRequestDto request) {
     return (int) request.getTravelers().stream()
             .filter(t -> "ADULT".equals(t.getTravelerType()))
             .count();
   }
 
+  @Override
   public Integer countChildren(CreateFlightBookingRequestDto request) {
     return (int) request.getTravelers().stream()
             .filter(t -> "CHILD".equals(t.getTravelerType()))
             .count();
   }
 
+  @Override
   public Integer countInfants(CreateFlightBookingRequestDto request) {
     return (int) request.getTravelers().stream()
             .filter(t -> "INFANT".equals(t.getTravelerType()))
             .count();
   }
 
+  @Override
   public FlightBookingResponseDto convertToFlightBookingResponse(FlightBooking flightBooking) {
     return modelMapper.map(flightBooking, FlightBookingResponseDto.class);
   }
 
+  @Override
   public BookingResponseDto convertToBookingResponse(Booking booking) {
     return modelMapper.map(booking, BookingResponseDto.class);
   }

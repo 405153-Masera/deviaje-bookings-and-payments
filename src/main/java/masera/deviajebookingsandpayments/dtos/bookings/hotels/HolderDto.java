@@ -17,4 +17,8 @@ public class HolderDto {
 
   @NotBlank(message = "El apellido del titular es obligatorio")
   private String surname;
+
+  private String email;
+
+  private String phone;
 }

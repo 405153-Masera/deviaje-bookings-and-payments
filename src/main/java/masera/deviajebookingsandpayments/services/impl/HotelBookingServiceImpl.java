@@ -1,6 +1,5 @@
 package masera.deviajebookingsandpayments.services.impl;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
@@ -73,12 +72,12 @@ public class HotelBookingServiceImpl implements HotelBookingService {
       String externalId = extractExternalId(hotelBedsResponse);
       Map<String, Object> hotelDetails = extractHotelDetails(hotelBedsResponse);
 
-      // 4. Guardar en nuestra base de datos
+      // 3. Guardar en nuestra base de datos
       log.info("Guardando reserva en base de datos");
       Booking savedBooking = saveBookingInDatabase(bookingRequest,
               prices, externalId, hotelDetails);
 
-      // 1. Procesar pago PRIMERO
+      // 4. Procesar pago PRIMERO
       log.info("Procesando pago para reserva de hotel");
       PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
 
@@ -160,7 +159,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   /**
    * Prepara la solicitud de reserva para HotelBeds.
    */
-  private Map<String, Object> prepareHotelBedsBookingRequest(CreateHotelBookingRequestDto request) {
+  @Override
+  public Map<String, Object> prepareHotelBedsBookingRequest(CreateHotelBookingRequestDto request) {
     Map<String, Object> bookingRequest = new HashMap<>();
 
     // Datos del titular
@@ -213,7 +213,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   /**
    * Actualiza el pago con el ID de la reserva.
    */
-  private void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
+  @Override
+  public void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
     Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
     if (paymentOpt.isPresent()) {
       Payment payment = paymentOpt.get();
@@ -225,7 +226,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     }
   }
 
-  private String extractExternalId(Object hotelBedsResponse) {
+  @Override
+  public String extractExternalId(Object hotelBedsResponse) {
     // Extraer el 'reference' de la respuesta de HotelBeds
     // Implementar según la estructura real de la respuesta
     if (hotelBedsResponse instanceof Map) {
@@ -238,40 +240,25 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     return "HOTEL_" + System.currentTimeMillis(); // Fallback temporal
   }
 
-  private Map<String, Object> extractHotelDetails(Object hotelBedsResponse) {
+  @Override
+  public Map<String, Object> extractHotelDetails(Object hotelBedsResponse) {
     // Extraer detalles del hotel de la respuesta
     // Implementar según la estructura real
     return (Map<String, Object>) hotelBedsResponse;
   }
 
-  @Transactional
-  protected Booking saveBookingInDatabase(CreateHotelBookingRequestDto request,
-                                          PricesDto payment,
-                                          String externalId,
-                                          Map<String, Object> hotelDetails) {
+  public HotelBooking createHotelBookingEntity(CreateHotelBookingRequestDto request,
+                                               Booking booking,
+                                               String externalId,
+                                               PricesDto prices,
+                                               Map<String, Object> hotelDetails) {
 
-    // 1. Crear booking principal
-    Booking booking = Booking.builder()
-            .clientId(request.getClientId())
-            .agentId(request.getAgentId())
-            .status(Booking.BookingStatus.CONFIRMED)
-            .type(Booking.BookingType.HOTEL)
-            .totalAmount(payment.getTotalAmount())
-            .commission(payment.getCommission())
-            .discount(payment.getDiscount())
-            .taxes(payment.getTaxesHotel())
-            .currency(payment.getCurrency())
-            .build();
-
-    Booking savedBooking = bookingRepository.save(booking);
-
-    // 2. Crear hotel booking
-    String firstRateKey = request.getRooms().getFirst().getRateKey();
+    String firstRateKey = request.getRooms().get(0).getRateKey();
     LocalDate checkIn = extractCheckInDate(firstRateKey);
     LocalDate checkOut = extractCheckOutDate(firstRateKey);
 
     HotelBooking hotelBooking = HotelBooking.builder()
-            .booking(savedBooking)
+            .booking(booking)
             .externalId(externalId)
             .hotelName(extractHotelName(hotelDetails))
             .destinationName(extractDestinationName(hotelDetails))
@@ -281,16 +268,44 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .numberOfRooms(request.getRooms().size())
             .adults(countAdults(request))
             .children(countChildren(request))
-            .totalPrice(payment.getNet())
-            .taxes(payment.getTaxesHotel())
-            .currency(payment.getCurrency())
+            .totalPrice(prices.getNet())
+            .taxes(prices.getTaxesHotel())
+            .currency(prices.getCurrency())
             .build();
 
-    hotelBookingRepository.save(hotelBooking);
+    return hotelBookingRepository.save(hotelBooking);
+  }
+
+  @Transactional
+  @Override
+  public Booking saveBookingInDatabase(CreateHotelBookingRequestDto request,
+                                       PricesDto payment,
+                                       String externalId,
+                                       Map<String, Object> hotelDetails) {
+
+    // 1. Crear booking principal
+    Booking booking = Booking.builder()
+            .clientId(request.getClientId())
+            .agentId(request.getAgentId())
+            .status(Booking.BookingStatus.CONFIRMED)
+            .type(Booking.BookingType.FLIGHT)
+            .totalAmount(payment.getTotalAmount())
+            .commission(payment.getCommission())
+            .discount(payment.getDiscount())
+            .taxes(payment.getTaxesFlight().add(payment.getTaxesHotel()))
+            .currency(payment.getCurrency())
+            .email(request.getHolder().getEmail())
+            .phone(request.getHolder().getPhone())
+            .build();
+
+    Booking savedBooking = bookingRepository.save(booking);
+
+    createHotelBookingEntity(request, savedBooking, externalId, payment, hotelDetails);
     return savedBooking;
   }
 
-  private LocalDate extractCheckInDate(String rateKey) {
+  @Override
+  public LocalDate extractCheckInDate(String rateKey) {
     // Extraer fecha de check-in del rateKey (formato: 20250615|20250620|...)
     String[] parts = rateKey.split("\\|");
     if (parts.length > 0) {
@@ -300,7 +315,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     return LocalDate.now().plusDays(7); // Default
   }
 
-  private LocalDate extractCheckOutDate(String rateKey) {
+  @Override
+  public LocalDate extractCheckOutDate(String rateKey) {
     // Extraer fecha de check-out del rateKey
     String[] parts = rateKey.split("\\|");
     if (parts.length > 1) {
@@ -324,7 +340,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     return "HOTEL_001"; // Placeholder
   }
 
-  private String extractHotelName(Map<String, Object> hotelDetails) {
+  @Override
+  public String extractHotelName(Map<String, Object> hotelDetails) {
     if (hotelDetails.containsKey("booking") && hotelDetails.get("booking") instanceof Map) {
       Map<String, Object> booking = (Map<String, Object>) hotelDetails.get("booking");
       if (booking.containsKey("hotel") && booking.get("hotel") instanceof Map) {
@@ -350,7 +367,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     return "MAD"; // Placeholder
   }
 
-  private String extractDestinationName(Map<String, Object> hotelDetails) {
+  @Override
+  public String extractDestinationName(Map<String, Object> hotelDetails) {
     if (hotelDetails.containsKey("booking") && hotelDetails.get("booking") instanceof Map) {
       Map<String, Object> booking = (Map<String, Object>) hotelDetails.get("booking");
       if (booking.containsKey("hotel") && booking.get("hotel") instanceof Map) {
@@ -363,7 +381,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     return "Madrid"; // Placeholder
   }
 
-  private Integer countAdults(CreateHotelBookingRequestDto request) {
+  @Override
+  public Integer countAdults(CreateHotelBookingRequestDto request) {
     return request.getRooms().stream()
             .mapToInt(room -> (int) room.getPaxes().stream()
                     .filter(pax -> "AD".equals(pax.getType()))
@@ -371,7 +390,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .sum();
   }
 
-  private Integer countChildren(CreateHotelBookingRequestDto request) {
+  @Override
+  public Integer countChildren(CreateHotelBookingRequestDto request) {
     return request.getRooms().stream()
             .mapToInt(room -> (int) room.getPaxes().stream()
                     .filter(pax -> "CH".equals(pax.getType()))
@@ -379,11 +399,14 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .sum();
   }
 
-  private HotelBookingResponseDto convertToHotelBookingResponse(HotelBooking hotelBooking) {
-    return modelMapper.map(hotelBooking, HotelBookingResponseDto.class);
+  @Override
+  public HotelBookingResponseDto convertToHotelBookingResponse(HotelBooking hotelBooking) {
+    HotelBookingResponseDto dto = modelMapper.map(hotelBooking, HotelBookingResponseDto.class);
+    return dto;
   }
 
-  private BookingResponseDto convertToBookingResponse(Booking booking) {
+  @Override
+  public BookingResponseDto convertToBookingResponse(Booking booking) {
     return modelMapper.map(booking, BookingResponseDto.class);
   }
 }

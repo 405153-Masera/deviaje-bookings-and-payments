@@ -19,7 +19,6 @@ public class BookingResponseDto {
   private Long id;
   private Long clientId;
   private Long agentId;
-  private Long branchId;
   private String status;
   private String bookingType; // "FLIGHT", "HOTEL", "PACKAGE"
   private BigDecimal totalAmount;

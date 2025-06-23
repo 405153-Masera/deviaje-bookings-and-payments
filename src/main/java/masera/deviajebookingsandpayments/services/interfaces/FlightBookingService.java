@@ -1,10 +1,14 @@
 package masera.deviajebookingsandpayments.services.interfaces;
 
 import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBookingRequestDto;
+import masera.deviajebookingsandpayments.dtos.bookings.flights.FlightOfferDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingResponseDto;
+import masera.deviajebookingsandpayments.entities.Booking;
+import masera.deviajebookingsandpayments.entities.FlightBooking;
 import org.springframework.stereotype.Service;
 
 /**
@@ -46,4 +50,130 @@ public interface FlightBookingService {
    * @return información actualizada de la oferta
    */
   Object verifyFlightOfferPrice(Object flightOfferData);
+
+  // =============== MÉTODOS PÚBLICOS PARA REUTILIZACIÓN ===============
+
+  /**
+   * Prepara los datos de la reserva en el formato requerido por Amadeus.
+   *
+   * @param bookingRequest datos de la reserva
+   * @return datos formateados para Amadeus
+   */
+  Object prepareAmadeusBookingData(CreateFlightBookingRequestDto bookingRequest);
+
+  /**
+   * Extrae el ID externo de la respuesta de Amadeus.
+   *
+   * @param amadeusResponse respuesta de Amadeus
+   * @return ID externo o temporal
+   */
+  String extractExternalId(Object amadeusResponse);
+
+  FlightBooking createFlightBookingEntity(CreateFlightBookingRequestDto request,
+                                          FlightOfferDto flightOffer,
+                                          Booking booking,
+                                          String externalId,
+                                          PricesDto prices);
+
+  /**
+   * Guarda la reserva de vuelo en la base de datos.
+   *
+   * @param request datos de la reserva
+   * @param flightOffer datos de la oferta de vuelo
+   * @param prices datos de precios
+   * @param externalId ID externo de la reserva en Amadeus
+   * @return la reserva guardada
+   */
+  Booking saveBookingInDatabase(CreateFlightBookingRequestDto request,
+                                FlightOfferDto flightOffer,
+                                PricesDto prices,
+                                String externalId);
+
+  /**
+   * Actualiza el pago con el ID de la reserva.
+   *
+   * @param paymentId id del pago
+   * @param bookingId ID de la reserva
+   */
+  void updatePaymentWithBookingId(Long paymentId, Long bookingId);
+
+  /**
+   * Extrae el origen del primer segmento del primer itinerario.
+   *
+   * @param offer la oferta de vuelo
+   * @return el código IATA del origen
+   */
+  String extractOrigin(FlightOfferDto offer);
+
+  /**
+   * Extrae el destino final del primer itinerario.
+   *
+   * @param offer la oferta de vuelo
+   * @return el código IATA del destino
+   */
+  String extractDestination(FlightOfferDto offer);
+
+  /**
+   * Extrae la fecha de salida del primer segmento.
+   *
+   * @param offer la oferta de vuelo
+   * @return fecha de salida
+   */
+  String extractDepartureDate(FlightOfferDto offer);
+
+  /**
+   * Extrae la fecha de retorno si existe.
+   *
+   * @param offer la oferta de vuelo
+   * @return fecha de retorno o null
+   */
+  String extractReturnDate(FlightOfferDto offer);
+
+  /**
+   * Extrae la aerolínea principal del primer segmento.
+   *
+   * @param offer la oferta de vuelo
+   * @return código de aerolínea
+   */
+  String extractCarrier(FlightOfferDto offer);
+
+  /**
+   * Cuenta adultos en la lista de viajeros.
+   *
+   * @param request datos de la reserva
+   * @return número de adultos
+   */
+  Integer countAdults(CreateFlightBookingRequestDto request);
+
+  /**
+   * Cuenta niños en la lista de viajeros.
+   *
+   * @param request datos de la reserva
+   * @return número de niños
+   */
+  Integer countChildren(CreateFlightBookingRequestDto request);
+
+  /**
+   * Cuenta infantes en la lista de viajeros.
+   *
+   * @param request datos de la reserva
+   * @return número de infantes
+   */
+  Integer countInfants(CreateFlightBookingRequestDto request);
+
+  /**
+   * Convierte FlightBooking a FlightBookingResponseDto.
+   *
+   * @param flightBooking entidad de reserva de vuelo
+   * @return DTO de respuesta
+   */
+  FlightBookingResponseDto convertToFlightBookingResponse(FlightBooking flightBooking);
+
+  /**
+   * Convierte Booking a BookingResponseDto.
+   *
+   * @param booking entidad de reserva
+   * @return DTO de respuesta
+   */
+  BookingResponseDto convertToBookingResponse(Booking booking);
 }
