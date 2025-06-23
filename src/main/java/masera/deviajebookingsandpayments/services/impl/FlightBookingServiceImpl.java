@@ -1,6 +1,5 @@
 package masera.deviajebookingsandpayments.services.impl;
 
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +8,7 @@ import masera.deviajebookingsandpayments.clients.FlightClient;
 import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.bookings.flights.FlightOfferDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
+import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingResponseDto;
@@ -45,48 +45,50 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   @Override
   @Transactional
   public BookAndPayResponseDto bookAndPay(CreateFlightBookingRequestDto bookingRequest,
-                                          PaymentRequestDto paymentRequest) {
+                                          PaymentRequestDto paymentRequest, PricesDto prices) {
 
     log.info("Iniciando proceso de reserva y pago para vuelo. Cliente: {}",
             bookingRequest.getClientId());
 
-    log.info("Datos del pagoa: {}", paymentRequest.getAmount());
+    log.info("Datos del pago: {}", paymentRequest.getAmount());
+
     try {
-      // 1. Procesar pago PRIMERO
+
+      // 1. Crear la reserva en Amadeus
+      log.info("Creando reserva en Amadeus");
+      Object amadeusBookingData = prepareAmadeusBookingData(bookingRequest);
+      Object amadeusResponse = flightClient.createFlightOrder(amadeusBookingData).block();
+
+      if (amadeusResponse == null) {
+        log.error("Reserva falló en Amadeus: respuesta nula");
+        return BookAndPayResponseDto.bookingFailed(
+                "El vuelo seleccionado ya no está disponible. "
+                        + "Por favor, realice una nueva búsqueda");
+      }
+
+      // 2. Extraer datos de la respuesta de Amadeus
+      String externalId = extractExternalId(amadeusResponse);
+
+      // 3. Guardar en nuestra base de datos
+      log.info("Guardando reserva en base de datos");
+      FlightOfferDto flightOffer = bookingRequest.getFlightOffer();
+      Booking savedBooking = saveBookingInDatabase(bookingRequest,
+              flightOffer, prices, externalId);
+
+      // 4. Procesar pago PRIMERO
       log.info("Procesando pago para reserva de vuelo");
       PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
 
       if (!"APPROVED".equals(paymentResult.getStatus())) {
         log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-        return BookAndPayResponseDto.paymentFailed(paymentResult.getErrorMessage());
+        return BookAndPayResponseDto.paymentFailed("Pago rechazado. "
+                + "Datos incorrectos o fondos insuficientes. ");
       }
 
-      // 2. Si pago exitoso, crear reserva en Amadeus
-      log.info("Pago aprobado, creando reserva en Amadeus");
-      Object amadeusBookingData = prepareAmadeusBookingData(bookingRequest);
-      Object amadeusResponse = flightClient.createFlightOrder(amadeusBookingData).block();
-
-      if (amadeusResponse == null) {
-        // Pago exitoso pero reserva falló → Reembolsar
-        log.error("Reserva falló en Amadeus, iniciando reembolso");
-        paymentService.refundPayment(paymentResult.getId());
-        return BookAndPayResponseDto.bookingFailed(
-                "No se pudo confirmar la reserva. El pago será reembolsado.");
-      }
-
-      // 3. Extraer datos de la respuesta de Amadeus
-      String externalId = extractExternalId(amadeusResponse);
-
-      // 4. Guardar en nuestra base de datos
-      log.info("Guardando reserva en base de datos");
-      FlightOfferDto flightOffer = bookingRequest.getFlightOffer();
-      Booking savedBooking = saveBookingInDatabase(bookingRequest,
-              flightOffer, paymentResult, externalId);
-
-      // 6. Asociar el pago con la reserva
+      // 5. Asociar el pago con la reserva
       updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
 
-      // 7. Convertir a DTOs de respuesta
+      // 6. Convertir a DTOs de respuesta
       BookingResponseDto bookingResponse = convertToBookingResponse(savedBooking);
 
       log.info("Reserva de vuelo completada exitosamente. ID: {}", savedBooking.getId());
@@ -142,61 +144,6 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   }
 
   @Override
-  @Transactional
-  public BookAndPayResponseDto cancelBooking(Long bookingId) {
-    log.info("Cancelando reserva de vuelo: {}", bookingId);
-
-    try {
-      // 1. Obtener reserva de la BD
-      Optional<FlightBooking> flightBookingOpt = flightBookingRepository.findById(bookingId);
-
-      if (flightBookingOpt.isEmpty()) {
-        return BookAndPayResponseDto.bookingFailed("Reserva no encontrada");
-      }
-
-      FlightBooking flightBooking = flightBookingOpt.get();
-
-      // 2. Verificar si se puede cancelar
-      if (FlightBooking.FlightBookingStatus.CANCELLED.equals(flightBooking.getStatus())) {
-        return BookAndPayResponseDto.bookingFailed("La reserva ya está cancelada");
-      }
-
-      // 3. Cancelar en Amadeus (si la API lo permite)
-      String externalId = flightBooking.getExternalId();
-      if (externalId != null) {
-        try {
-          flightClient.cancelFlightOrder(externalId).block();
-        } catch (Exception e) {
-          log.warn("No se pudo cancelar en Amadeus: {}", e.getMessage());
-          // Continuar con cancelación local
-        }
-      }
-
-      // 4. Actualizar estado en nuestra BD
-      flightBooking.setStatus(FlightBooking.FlightBookingStatus.CANCELLED);
-      flightBooking.getBooking().setStatus(Booking.BookingStatus.CANCELLED);
-
-      flightBookingRepository.save(flightBooking);
-      bookingRepository.save(flightBooking.getBooking());
-
-      // 5. Procesar reembolso si aplica
-      paymentService.processRefundForBooking(flightBooking.getBooking().getId());
-
-      log.info("Reserva cancelada exitosamente: {}", bookingId);
-
-      return BookAndPayResponseDto.builder()
-              .success(true)
-              .message("Reserva cancelada exitosamente")
-              .booking(convertToBookingResponse(flightBooking.getBooking()))
-              .build();
-
-    } catch (Exception e) {
-      log.error("Error al cancelar reserva: {}", bookingId, e);
-      return BookAndPayResponseDto.bookingFailed("Error al cancelar: " + e.getMessage());
-    }
-  }
-
-  @Override
   public Object verifyFlightOfferPrice(Object flightOfferData) {
     log.info("Verificando disponibilidad y precio de oferta de vuelo");
 
@@ -213,7 +160,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   /**
    * Prepara los datos de la reserva en el formato requerido por Amadeus.
    */
-  private Object prepareAmadeusBookingData(
+  public Object prepareAmadeusBookingData(
           CreateFlightBookingRequestDto bookingRequest) {
 
     return java.util.Map.of(
@@ -230,8 +177,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
                             )
                     ),
                     "ticketingAgreement", java.util.Map.of(
-                            "option", "DELAY_TO_CANCEL",
-                            "delay", "6D"
+                            "option", "CONFIRM"
                     )
             )
     );
@@ -240,7 +186,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   /**
    * Actualiza el pago con el ID de la reserva.
    */
-  private void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
+  public void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
     Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
     if (paymentOpt.isPresent()) {
       Payment payment = paymentOpt.get();
@@ -252,8 +198,14 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     }
   }
 
-  // EN ESTE TENGO QUE VER SI DEVOLVER UN FALLO O EL Fallback temporal
-  private String extractExternalId(Object amadeusResponse) {
+  /**
+   * Extrae el ID externo de la respuesta de Amadeus.
+   * Si no se encuentra, genera un ID temporal.
+   *
+   * @param amadeusResponse respuesta de Amadeus
+   * @return ID externo o temporal
+   */
+  public String extractExternalId(Object amadeusResponse) {
     if (amadeusResponse instanceof Map) {
       Map<String, Object> response = (Map<String, Object>) amadeusResponse;
       if (response.containsKey("data")) {
@@ -278,22 +230,23 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   @Transactional
   protected Booking saveBookingInDatabase(CreateFlightBookingRequestDto request,
                                           FlightOfferDto flightOffer,
-                                          PaymentResponseDto payment,
+                                          PricesDto payment,
                                           String externalId) {
 
     // 1. Crear booking principal
     Booking booking = Booking.builder()
             .clientId(request.getClientId())
             .agentId(request.getAgentId())
-            .branchId(request.getBranchId())
             .status(Booking.BookingStatus.CONFIRMED)
             .type(Booking.BookingType.FLIGHT)
-            .totalAmount(payment.getAmount())
+            .totalAmount(payment.getTotalAmount())
+            .commission(payment.getCommission())
+            .discount(payment.getDiscount())
+            .taxes(payment.getTaxesFlight().add(payment.getTaxesHotel()))
             .currency(payment.getCurrency())
-            .discount(BigDecimal.ZERO) // VER MAS ADELANTE DE APLICAR DESCUENTOS PARA MEMBRESIA
-            .taxes(calculateTaxes(flightOffer, payment.getAmount()))
             .email(request.getTravelers().getFirst().getContact().getEmailAddress())
-            .phone(request.getTravelers().getFirst().getContact().getPhones().getFirst().getNumber())
+            .phone(request.getTravelers().getFirst()
+                    .getContact().getPhones().getFirst().getNumber())
             .build();
 
     Booking savedBooking = bookingRepository.save(booking);
@@ -307,58 +260,62 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .departureDate(extractDepartureDate(flightOffer))
             .returnDate(extractReturnDate(flightOffer))
             .carrier(extractCarrier(flightOffer))
-            .basePrice(payment.getAmount().multiply(new BigDecimal("0.85"))) // Es mejor sacarlo del flight offer
-            .taxes(payment.getAmount().multiply(new BigDecimal("0.15"))) // mismo que calculateTaxes
-            .discounts(BigDecimal.ZERO)
-            .totalPrice(payment.getAmount())
-            .currency(payment.getCurrency())
-            .status(FlightBooking.FlightBookingStatus.CONFIRMED)
+            .adults(countAdults(request))
+            .children(countChildren(request))
+            .infants(countInfants(request))
+            .totalPrice(payment.getGrandTotal())
+            .taxes(payment.getTaxesFlight())
+            .currency(payment.getCurrency()) //Solo faltaría la política de cancelación
             .build();
 
     flightBookingRepository.save(flightBooking);
     return savedBooking;
   }
 
-  private BigDecimal calculateTaxes(FlightOfferDto offer, BigDecimal totalAmount) {
-    // Calcular impuestos basado en la oferta
-    // Por simplicidad, usamos un 15% del total
-    return totalAmount.multiply(new BigDecimal("0.15"));
-  }
 
-  private String extractOrigin(FlightOfferDto offer) {
+  /**
+   * Extrae el origen del primer segmento del primer itinerario de la oferta de vuelo.
+   *
+   * @param offer la oferta de vuelo
+   * @return el código IATA del origen o "XXX" si no se encuentra
+   */
+  public String extractOrigin(FlightOfferDto offer) {
     // Extraer origen del primer segmento del primer itinerario
     if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
-            && offer.getItineraries().get(0).getSegments() != null
-            && !offer.getItineraries().get(0).getSegments().isEmpty()) {
-      return offer.getItineraries().get(0).getSegments().get(0).getDeparture().getIataCode();
+            && offer.getItineraries().getFirst().getSegments() != null
+            && !offer.getItineraries().getFirst().getSegments().isEmpty()) {
+      return offer.getItineraries().getFirst()
+              .getSegments().getFirst().getDeparture().getIataCode();
     }
     return "XXX"; // Código de fallback
   }
 
-  private String extractDestination(FlightOfferDto offer) {
+  public String extractDestination(FlightOfferDto offer) {
     // Extraer destino final del primer itinerario
     if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
-            && offer.getItineraries().get(0).getSegments() != null
-            && !offer.getItineraries().get(0).getSegments().isEmpty()) {
-      int lastIndex = offer.getItineraries().get(0).getSegments().size() - 1;
-      return offer.getItineraries().get(0).getSegments().get(lastIndex).getArrival().getIataCode();
+            && offer.getItineraries().getFirst().getSegments() != null
+            && !offer.getItineraries().getFirst().getSegments().isEmpty()) {
+      int lastIndex = offer.getItineraries().getFirst().getSegments().size() - 1;
+      return offer.getItineraries().getFirst()
+              .getSegments().get(lastIndex).getArrival().getIataCode();
     }
     return "XXX"; // Código de fallback
   }
 
-  private String extractDepartureDate(FlightOfferDto offer) {
+  public String extractDepartureDate(FlightOfferDto offer) {
     // Extraer fecha de salida del primer segmento del primer itinerario
     if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
-            && offer.getItineraries().get(0).getSegments() != null
-            && !offer.getItineraries().get(0).getSegments().isEmpty()) {
-      if (offer.getItineraries().get(0).getSegments().get(0).getDeparture().getAt() != null) {
-        return offer.getItineraries().get(0).getSegments().get(0).getDeparture().getAt();
+            && offer.getItineraries().getFirst().getSegments() != null
+            && !offer.getItineraries().getFirst().getSegments().isEmpty()) {
+      if (offer.getItineraries().getFirst().getSegments()
+              .getFirst().getDeparture().getAt() != null) {
+        return offer.getItineraries().getFirst().getSegments().getFirst().getDeparture().getAt();
       }
     }
     return "2025-06-16T10:00:00"; // Fecha de fallback
   }
 
-  private String extractReturnDate(FlightOfferDto offer) {
+  public String extractReturnDate(FlightOfferDto offer) {
     // Extraer fecha de retorno (si existe)
     if (offer != null && offer.getItineraries() != null && offer.getItineraries().size() > 1
             && offer.getItineraries().get(1).getSegments() != null
@@ -368,24 +325,42 @@ public class FlightBookingServiceImpl implements FlightBookingService {
         return offer.getItineraries().get(1).getSegments().get(lastIndex).getArrival().getAt();
       }
     }
-    return null; // Puede ser null para vuelos solo ida
+    return null; // Puede ser null para vuelos solo de ida
   }
 
-  private String extractCarrier(FlightOfferDto offer) {
+  public String extractCarrier(FlightOfferDto offer) {
     // Extraer aerolínea principal del primer segmento
     if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
-            && offer.getItineraries().get(0).getSegments() != null
-            && !offer.getItineraries().get(0).getSegments().isEmpty()) {
-      return offer.getItineraries().get(0).getSegments().get(0).getCarrierCode();
+            && offer.getItineraries().getFirst().getSegments() != null
+            && !offer.getItineraries().getFirst().getSegments().isEmpty()) {
+      return offer.getItineraries().getFirst().getSegments().getFirst().getCarrierCode();
     }
     return "XX"; // Código de fallback
   }
 
-  private FlightBookingResponseDto convertToFlightBookingResponse(FlightBooking flightBooking) {
+  public Integer countAdults(CreateFlightBookingRequestDto request) {
+    return (int) request.getTravelers().stream()
+            .filter(t -> "ADULT".equals(t.getTravelerType()))
+            .count();
+  }
+
+  public Integer countChildren(CreateFlightBookingRequestDto request) {
+    return (int) request.getTravelers().stream()
+            .filter(t -> "CHILD".equals(t.getTravelerType()))
+            .count();
+  }
+
+  public Integer countInfants(CreateFlightBookingRequestDto request) {
+    return (int) request.getTravelers().stream()
+            .filter(t -> "INFANT".equals(t.getTravelerType()))
+            .count();
+  }
+
+  public FlightBookingResponseDto convertToFlightBookingResponse(FlightBooking flightBooking) {
     return modelMapper.map(flightBooking, FlightBookingResponseDto.class);
   }
 
-  private BookingResponseDto convertToBookingResponse(Booking booking) {
+  public BookingResponseDto convertToBookingResponse(Booking booking) {
     return modelMapper.map(booking, BookingResponseDto.class);
   }
 }

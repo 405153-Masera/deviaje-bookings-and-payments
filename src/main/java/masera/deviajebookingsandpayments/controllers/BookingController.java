@@ -2,7 +2,6 @@ package masera.deviajebookingsandpayments.controllers;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +34,8 @@ public class BookingController {
    * @return lista de reservas
    */
   @GetMapping("/client/{clientId}")
-  public ResponseEntity<List<BookingResponseDto>> getClientBookings(@PathVariable Long clientId) {
+  public ResponseEntity<List<BookingResponseDto>> getClientBookings(
+          @PathVariable Integer clientId) {
     log.info("Obteniendo reservas para el cliente: {}", clientId);
 
     try {
@@ -82,7 +82,7 @@ public class BookingController {
    * @return lista de reservas
    */
   @GetMapping("/agent/{agentId}")
-  public ResponseEntity<List<BookingResponseDto>> getAgentBookings(@PathVariable Long agentId) {
+  public ResponseEntity<List<BookingResponseDto>> getAgentBookings(@PathVariable Integer agentId) {
     log.info("Obteniendo reservas para el agente: {}", agentId);
 
     try {
@@ -99,29 +99,6 @@ public class BookingController {
   }
 
   /**
-   * Obtiene el historial de reservas de una sucursal.
-   *
-   * @param branchId ID de la sucursal
-   * @return lista de reservas
-   */
-  @GetMapping("/branch/{branchId}")
-  public ResponseEntity<List<BookingResponseDto>> getBranchBookings(@PathVariable Long branchId) {
-    log.info("Obteniendo reservas para la sucursal: {}", branchId);
-
-    try {
-      List<Booking> bookings = bookingRepository.findByBranchId(branchId);
-      List<BookingResponseDto> response = bookings.stream()
-              .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
-              .collect(Collectors.toList());
-
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
-      log.error("Error al obtener reservas de la sucursal", e);
-      return ResponseEntity.internalServerError().build();
-    }
-  }
-
-  /**
    * Obtiene reservas filtradas por tipo.
    *
    * @param clientId ID del cliente
@@ -130,7 +107,7 @@ public class BookingController {
    */
   @GetMapping("/client/{clientId}/type/{type}")
   public ResponseEntity<List<BookingResponseDto>> getClientBookingsByType(
-          @PathVariable Long clientId,
+          @PathVariable Integer clientId,
           @PathVariable String type) {
 
     log.info("Obteniendo reservas de tipo {} para el cliente: {}", type, clientId);

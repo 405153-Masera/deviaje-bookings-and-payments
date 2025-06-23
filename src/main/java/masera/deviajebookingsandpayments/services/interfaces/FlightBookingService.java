@@ -2,6 +2,7 @@ package masera.deviajebookingsandpayments.services.interfaces;
 
 import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
+import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingResponseDto;
 import org.springframework.stereotype.Service;
@@ -19,7 +20,8 @@ public interface FlightBookingService {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con resultado de la operación
    */
-  BookAndPayResponseDto bookAndPay(CreateFlightBookingRequestDto bookingRequest, PaymentRequestDto paymentRequest);
+  BookAndPayResponseDto bookAndPay(CreateFlightBookingRequestDto bookingRequest,
+                                   PaymentRequestDto paymentRequest, PricesDto prices);
 
   /**
    * Obtiene información básica de una reserva de vuelo desde la BD.
@@ -36,14 +38,6 @@ public interface FlightBookingService {
    * @return detalles completos desde la API externa
    */
   Object getFullBookingDetails(Long bookingId);
-
-  /**
-   * Cancela una reserva de vuelo.
-   *
-   * @param bookingId ID de la reserva a cancelar
-   * @return respuesta con el resultado de la cancelación
-   */
-  BookAndPayResponseDto cancelBooking(Long bookingId);
 
   /**
    * Verifica disponibilidad y precio de una oferta de vuelo.

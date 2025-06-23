@@ -20,11 +20,9 @@ import java.util.List;
 @Builder
 public class CreateHotelBookingRequestDto {
 
-  private Long clientId;
+  private Integer clientId;
 
-  private Long agentId;
-
-  private Long branchId;
+  private Integer agentId;
 
   @NotNull(message = "El titular de la reserva es obligatorio")
   private HolderDto holder;

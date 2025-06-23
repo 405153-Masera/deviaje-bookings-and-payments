@@ -104,9 +104,7 @@ public class FlightClient {
                 log.error("Error al crear reserva de vuelo: {}", error.getMessage());
               }
             })
-            .onErrorResume(WebClientResponseException.class, e -> {
-              throw errorHandler.handleAmadeusError(e);
-            });
+            .onErrorResume(throwable -> Mono.empty());
   }
 
   /**

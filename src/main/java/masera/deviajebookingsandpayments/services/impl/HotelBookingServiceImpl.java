@@ -3,7 +3,10 @@ package masera.deviajebookingsandpayments.services.impl;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +15,7 @@ import masera.deviajebookingsandpayments.dtos.bookings.hotels.CreateHotelBooking
 import masera.deviajebookingsandpayments.dtos.bookings.hotels.PaxDto;
 import masera.deviajebookingsandpayments.dtos.bookings.hotels.RoomDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
+import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingResponseDto;
@@ -46,12 +50,34 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   @Override
   @Transactional
   public BookAndPayResponseDto bookAndPay(CreateHotelBookingRequestDto bookingRequest,
-                                          PaymentRequestDto paymentRequest) {
+                                          PaymentRequestDto paymentRequest,
+                                          PricesDto prices) {
 
     log.info("Iniciando proceso de reserva y pago para hotel. Cliente: {}",
             bookingRequest.getClientId());
 
     try {
+
+      // 1. Crear reserva en HotelBeds
+      log.info("Creando reserva en HotelBeds");
+      Map<String, Object> hotelBedsRequest = prepareHotelBedsBookingRequest(bookingRequest);
+      Object hotelBedsResponse = hotelClient.createBooking(hotelBedsRequest).block();
+
+      if (hotelBedsResponse == null) {
+        return BookAndPayResponseDto.bookingFailed(
+                "La habitación ya no está disponible."
+                        + " Por favor, realice una nueva búsqueda");
+      }
+
+      // 2. Extraer datos de la respuesta de HotelBeds
+      String externalId = extractExternalId(hotelBedsResponse);
+      Map<String, Object> hotelDetails = extractHotelDetails(hotelBedsResponse);
+
+      // 4. Guardar en nuestra base de datos
+      log.info("Guardando reserva en base de datos");
+      Booking savedBooking = saveBookingInDatabase(bookingRequest,
+              prices, externalId, hotelDetails);
+
       // 1. Procesar pago PRIMERO
       log.info("Procesando pago para reserva de hotel");
       PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
@@ -61,27 +87,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
         return BookAndPayResponseDto.paymentFailed(paymentResult.getErrorMessage());
       }
 
-      // 2. Si pago exitoso, crear reserva en HotelBeds
-      log.info("Pago aprobado, creando reserva en HotelBeds");
-      Map<String, Object> hotelBedsRequest = prepareHotelBedsBookingRequest(bookingRequest);
-      Object hotelBedsResponse = hotelClient.createBooking(hotelBedsRequest).block();
 
-      if (hotelBedsResponse == null) {
-        // Pago exitoso pero reserva falló → Reembolsar
-        log.error("Reserva falló en HotelBeds, iniciando reembolso");
-        paymentService.refundPayment(paymentResult.getId());
-        return BookAndPayResponseDto.bookingFailed(
-                "No se pudo confirmar la reserva. El pago será reembolsado.");
-      }
-
-      // 3. Extraer datos de la respuesta de HotelBeds
-      String externalId = extractExternalId(hotelBedsResponse);
-      Map<String, Object> hotelDetails = extractHotelDetails(hotelBedsResponse);
-
-      // 4. Guardar en nuestra base de datos
-      log.info("Guardando reserva en base de datos");
-      Booking savedBooking = saveBookingInDatabase(bookingRequest,
-              paymentResult, externalId, hotelDetails);
 
       // 5. Actualizar el pago con la reserva
       updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
@@ -134,61 +140,6 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     } catch (Exception e) {
       log.error("Error al obtener detalles de HotelBeds: {}", externalId, e);
       throw new RuntimeException("No se pudieron obtener los detalles de la reserva");
-    }
-  }
-
-  @Override
-  @Transactional
-  public BookAndPayResponseDto cancelBooking(Long bookingId) {
-    log.info("Cancelando reserva de hotel: {}", bookingId);
-
-    try {
-      // 1. Obtener reserva de la BD
-      Optional<HotelBooking> hotelBookingOpt = hotelBookingRepository.findById(bookingId);
-
-      if (hotelBookingOpt.isEmpty()) {
-        return BookAndPayResponseDto.bookingFailed("Reserva no encontrada");
-      }
-
-      HotelBooking hotelBooking = hotelBookingOpt.get();
-
-      // 2. Verificar si se puede cancelar
-      if ("CANCELLED".equals(hotelBooking.getStatus().name())) {
-        return BookAndPayResponseDto.bookingFailed("La reserva ya está cancelada");
-      }
-
-      // 3. Cancelar en HotelBeds (si la API lo permite)
-      String externalId = hotelBooking.getExternalId();
-      if (externalId != null) {
-        try {
-          hotelClient.cancelBooking(externalId).block();
-        } catch (Exception e) {
-          log.warn("No se pudo cancelar en HotelBeds: {}", e.getMessage());
-          // Continuar con cancelación local
-        }
-      }
-
-      // 4. Actualizar estado en nuestra BD
-      hotelBooking.setStatus(HotelBooking.HotelBookingStatus.CANCELLED);
-      hotelBooking.getBooking().setStatus(Booking.BookingStatus.CANCELLED);
-
-      hotelBookingRepository.save(hotelBooking);
-      bookingRepository.save(hotelBooking.getBooking());
-
-      // 5. Procesar reembolso si aplica
-      paymentService.processRefundForBooking(hotelBooking.getBooking().getId());
-
-      log.info("Reserva cancelada exitosamente: {}", bookingId);
-
-      return BookAndPayResponseDto.builder()
-              .success(true)
-              .message("Reserva cancelada exitosamente")
-              .booking(convertToBookingResponse(hotelBooking.getBooking()))
-              .build();
-
-    } catch (Exception e) {
-      log.error("Error al cancelar reserva: {}", bookingId, e);
-      return BookAndPayResponseDto.bookingFailed("Error al cancelar: " + e.getMessage());
     }
   }
 
@@ -295,7 +246,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
   @Transactional
   protected Booking saveBookingInDatabase(CreateHotelBookingRequestDto request,
-                                          PaymentResponseDto payment,
+                                          PricesDto payment,
                                           String externalId,
                                           Map<String, Object> hotelDetails) {
 
@@ -303,28 +254,26 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     Booking booking = Booking.builder()
             .clientId(request.getClientId())
             .agentId(request.getAgentId())
-            .branchId(request.getBranchId())
             .status(Booking.BookingStatus.CONFIRMED)
             .type(Booking.BookingType.HOTEL)
-            .totalAmount(payment.getAmount())
+            .totalAmount(payment.getTotalAmount())
+            .commission(payment.getCommission())
+            .discount(payment.getDiscount())
+            .taxes(payment.getTaxesHotel())
             .currency(payment.getCurrency())
-            .discount(BigDecimal.ZERO)
-            .taxes(BigDecimal.ZERO)
             .build();
 
     Booking savedBooking = bookingRepository.save(booking);
 
     // 2. Crear hotel booking
-    String firstRateKey = request.getRooms().get(0).getRateKey();
+    String firstRateKey = request.getRooms().getFirst().getRateKey();
     LocalDate checkIn = extractCheckInDate(firstRateKey);
     LocalDate checkOut = extractCheckOutDate(firstRateKey);
 
     HotelBooking hotelBooking = HotelBooking.builder()
             .booking(savedBooking)
             .externalId(externalId)
-            .hotelCode(extractHotelCode(hotelDetails))
             .hotelName(extractHotelName(hotelDetails))
-            .destinationCode(extractDestinationCode(hotelDetails))
             .destinationName(extractDestinationName(hotelDetails))
             .checkInDate(checkIn)
             .checkOutDate(checkOut)
@@ -332,29 +281,12 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .numberOfRooms(request.getRooms().size())
             .adults(countAdults(request))
             .children(countChildren(request))
-            .basePrice(payment.getAmount().multiply(new BigDecimal("0.85"))) // Estimado
-            .taxes(BigDecimal.ZERO) // Estimado
-            .discounts(BigDecimal.ZERO)
-            .totalPrice(payment.getAmount())
+            .totalPrice(payment.getNet())
+            .taxes(payment.getTaxesHotel())
             .currency(payment.getCurrency())
-            .status(HotelBooking.HotelBookingStatus.CONFIRMED)
             .build();
 
     hotelBookingRepository.save(hotelBooking);
-
-    // 3. Guardar el pago
-    Payment paymentEntity = Payment.builder()
-            .booking(savedBooking)
-            .amount(payment.getAmount())
-            .currency(payment.getCurrency())
-            .method(payment.getMethod())
-            .paymentProvider(payment.getPaymentProvider())
-            .externalPaymentId(payment.getExternalPaymentId())
-            .status(Payment.PaymentStatus.valueOf(payment.getStatus()))
-            .build();
-
-    paymentRepository.save(paymentEntity);
-
     return savedBooking;
   }
 
@@ -448,8 +380,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   }
 
   private HotelBookingResponseDto convertToHotelBookingResponse(HotelBooking hotelBooking) {
-    HotelBookingResponseDto dto = modelMapper.map(hotelBooking, HotelBookingResponseDto.class);
-    return dto;
+    return modelMapper.map(hotelBooking, HotelBookingResponseDto.class);
   }
 
   private BookingResponseDto convertToBookingResponse(Booking booking) {

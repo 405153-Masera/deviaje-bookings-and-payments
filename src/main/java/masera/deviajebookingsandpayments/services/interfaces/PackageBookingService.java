@@ -1,9 +1,9 @@
 package masera.deviajebookingsandpayments.services.interfaces;
 
 import java.util.List;
-import java.util.Map;
 import masera.deviajebookingsandpayments.dtos.bookings.CreatePackageBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
+import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import org.springframework.stereotype.Service;
@@ -21,7 +21,9 @@ public interface PackageBookingService {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con resultado de la operación
    */
-  BookAndPayResponseDto bookAndPay(CreatePackageBookingRequestDto bookingRequest, PaymentRequestDto paymentRequest);
+  BookAndPayResponseDto bookAndPay(CreatePackageBookingRequestDto bookingRequest,
+                                   PaymentRequestDto paymentRequest,
+                                   PricesDto prices);
 
   /**
    * Obtiene las reservas de paquetes de un cliente.
@@ -29,7 +31,7 @@ public interface PackageBookingService {
    * @param clientId ID del cliente
    * @return lista de reservas del cliente
    */
-  List<BookingResponseDto> getClientPackageBookings(Long clientId);
+  List<BookingResponseDto> getClientPackageBookings(Integer clientId);
 
   /**
    * Obtiene detalles de una reserva de paquete.
@@ -46,12 +48,4 @@ public interface PackageBookingService {
    * @return respuesta con el resultado de la cancelación
    */
   BookAndPayResponseDto cancelBooking(Long bookingId);
-
-  /**
-   * Verifica disponibilidad y precio de un paquete.
-   *
-   * @param packageDetails Detalles del paquete a verificar
-   * @return información actualizada del paquete
-   */
-  Map<String, Object> verifyPackagePrice(Map<String, Object> packageDetails);
 }

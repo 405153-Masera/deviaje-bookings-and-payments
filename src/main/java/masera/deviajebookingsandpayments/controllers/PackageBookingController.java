@@ -2,13 +2,9 @@ package masera.deviajebookingsandpayments.controllers;
 
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import masera.deviajebookingsandpayments.dtos.bookings.CreatePackageBookingRequestDto;
-import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
+import masera.deviajebookingsandpayments.dtos.bookings.BookPackageAndPayRequest;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.PackageBookingService;
@@ -36,18 +32,19 @@ public class PackageBookingController {
    * Endpoint unificado: Reservar paquete y procesar pago.
    *
    * @param request datos de la reserva de paquete
-   * @param paymentRequest datos del pago
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
   public ResponseEntity<BookAndPayResponseDto> bookPackageAndPay(
-          @Valid @RequestBody CreatePackageBookingRequestDto request,
-          @Valid @RequestBody PaymentRequestDto paymentRequest) {
+          @Valid @RequestBody BookPackageAndPayRequest request) {
 
-    log.info("Iniciando reserva y pago de paquete para cliente: {}", request.getClientId());
 
     try {
-      BookAndPayResponseDto response = packageBookingService.bookAndPay(request, paymentRequest);
+      BookAndPayResponseDto response = packageBookingService.bookAndPay(
+              request.getPackageBookingRequest(),
+              request.getPaymentRequest(),
+              request.getPrices()
+      );
 
       if (response.getSuccess()) {
         log.info("Reserva de paquete exitosa. ID: {}", response.getBooking().getId());
@@ -77,7 +74,7 @@ public class PackageBookingController {
    */
   @GetMapping("/client/{clientId}")
   public ResponseEntity<List<BookingResponseDto>> getClientPackageBookings(
-          @PathVariable Long clientId) {
+          @PathVariable Integer clientId) {
 
     log.info("Obteniendo reservas de paquetes para el cliente: {}", clientId);
 
@@ -137,31 +134,6 @@ public class PackageBookingController {
               .detailedError(e.getMessage())
               .build();
       return ResponseEntity.internalServerError().body(errorResponse);
-    }
-  }
-
-  /**
-   * Verifica disponibilidad y precio de un paquete.
-   *
-   * @param packageDetails detalles del paquete a verificar
-   * @return información actualizada del paquete
-   */
-  @PostMapping("/verify-price")
-  public ResponseEntity<Map<String, Object>> verifyPackagePrice(
-          @RequestBody Map<String, Object> packageDetails) {
-
-    log.info("Verificando precio y disponibilidad de paquete");
-
-    try {
-      Map<String, Object> verifiedPackage =
-              packageBookingService.verifyPackagePrice(packageDetails);
-
-      return ResponseEntity.ok(verifiedPackage);
-    } catch (Exception e) {
-      log.error("Error al verificar precio de paquete: {}", e.getMessage());
-      return ResponseEntity.badRequest().body(
-              Map.of("error", "Paquete no disponible", "message", e.getMessage())
-      );
     }
   }
 }

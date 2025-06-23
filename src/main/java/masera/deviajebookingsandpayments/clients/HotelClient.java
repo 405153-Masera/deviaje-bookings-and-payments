@@ -90,8 +90,16 @@ public class HotelClient {
             .retrieve()
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Reserva creada exitosamente"))
-            .doOnError(error -> log.error("Error al crear reserva: {}", error.getMessage()))
-            .onErrorResume(WebClientResponseException.class, this::apply);
+            .doOnError(error -> {
+              if (error instanceof WebClientResponseException) {
+                WebClientResponseException webError = (WebClientResponseException) error;
+                log.error("Error al crear reserva de hotel - Status: {}, Body: {}",
+                        webError.getStatusCode(), webError.getResponseBodyAsString());
+              } else {
+                log.error("Error al crear reserva de vuelo: {}", error.getMessage());
+              }
+            })
+            .onErrorResume(throwable -> Mono.empty());
   }
 
 

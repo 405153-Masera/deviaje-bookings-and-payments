@@ -1,10 +1,17 @@
 package masera.deviajebookingsandpayments.services.impl;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.bookings.CreatePackageBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.bookings.flights.FlightOfferDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
+import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
@@ -26,11 +33,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
-
 /**
  * Implementación del servicio de reservas de paquetes.
  */
@@ -50,26 +52,12 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
   @Override
   @Transactional
-  public BookAndPayResponseDto bookAndPay(CreatePackageBookingRequestDto bookingRequest, PaymentRequestDto paymentRequest) {
-    log.info("Iniciando proceso de reserva y pago para paquete. Cliente: {}", bookingRequest.getClientId());
+  public BookAndPayResponseDto bookAndPay(CreatePackageBookingRequestDto bookingRequest,
+                                          PaymentRequestDto paymentRequest, PricesDto prices) {
+    log.info("Iniciando proceso de reserva y pago para paquete. Cliente: {}",
+            bookingRequest.getClientId());
 
     try {
-      // 1. Verificar disponibilidad y precio actual
-      // Verificar vuelo
-      Object flightOffer = bookingRequest.getFlightBooking().getFlightOffer();
-      Object verifiedFlightOffer = flightBookingService.verifyFlightOfferPrice(flightOffer);
-
-      if (verifiedFlightOffer == null) {
-        return BookAndPayResponseDto.verificationFailed("La oferta de vuelo seleccionada ya no está disponible");
-      }
-
-      // Verificar hotel
-      String rateKey = bookingRequest.getHotelBooking().getRooms().get(0).getRateKey();
-      Object verifiedHotelOffer = hotelBookingService.checkRates(rateKey);
-
-      if (verifiedHotelOffer == null) {
-        return BookAndPayResponseDto.verificationFailed("La tarifa del hotel seleccionada ya no está disponible");
-      }
 
       // 2. Procesar pago PRIMERO
       log.info("Procesando pago para reserva de paquete");
@@ -140,7 +128,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
   }
 
   @Override
-  public List<BookingResponseDto> getClientPackageBookings(Long clientId) {
+  public List<BookingResponseDto> getClientPackageBookings(Integer clientId) {
     log.info("Obteniendo reservas de paquetes para el cliente: {}", clientId);
 
     List<Booking> bookings = bookingRepository.findByClientIdAndType(clientId, Booking.BookingType.PACKAGE);
@@ -164,111 +152,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
   @Override
   @Transactional
   public BookAndPayResponseDto cancelBooking(Long bookingId) {
-    log.info("Cancelando reserva de paquete: {}", bookingId);
-
-    Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);
-    if (bookingOpt.isEmpty() || !Booking.BookingType.PACKAGE.equals(bookingOpt.get().getType())) {
-      return BookAndPayResponseDto.bookingFailed("Reserva de paquete no encontrada");
-    }
-
-    Booking booking = bookingOpt.get();
-
-    // Verificar si ya está cancelada
-    if (Booking.BookingStatus.CANCELLED.equals(booking.getStatus())) {
-      return BookAndPayResponseDto.bookingFailed("La reserva ya está cancelada");
-    }
-
-    try {
-      // Cancelar reserva de vuelo
-      List<FlightBooking> flightBookings = flightBookingRepository.findByBookingId(bookingId);
-      for (FlightBooking flightBooking : flightBookings) {
-        // Intentar cancelar en Amadeus si tiene externalId
-        if (flightBooking.getExternalId() != null) {
-          try {
-            flightBookingService.cancelBooking(flightBooking.getId());
-          } catch (Exception e) {
-            log.warn("Error al cancelar reserva de vuelo en Amadeus: {}", e.getMessage());
-            // Continuar con la cancelación local
-          }
-        }
-
-        // Actualizar estado localmente
-        flightBooking.setStatus(FlightBooking.FlightBookingStatus.CANCELLED);
-        flightBookingRepository.save(flightBooking);
-      }
-
-      // Cancelar reserva de hotel
-      List<HotelBooking> hotelBookings = hotelBookingRepository.findByBookingId(bookingId);
-      for (HotelBooking hotelBooking : hotelBookings) {
-        // Intentar cancelar en HotelBeds si tiene externalId
-        if (hotelBooking.getExternalId() != null) {
-          try {
-            hotelBookingService.cancelBooking(hotelBooking.getId());
-          } catch (Exception e) {
-            log.warn("Error al cancelar reserva de hotel en HotelBeds: {}", e.getMessage());
-            // Continuar con la cancelación local
-          }
-        }
-
-        // Actualizar estado localmente
-        hotelBooking.setStatus(HotelBooking.HotelBookingStatus.CANCELLED);
-        hotelBookingRepository.save(hotelBooking);
-      }
-
-      // Actualizar estado de la reserva principal
-      booking.setStatus(Booking.BookingStatus.CANCELLED);
-      bookingRepository.save(booking);
-
-      // Procesar reembolso
-      paymentService.processRefundForBooking(bookingId);
-
-      log.info("Reserva de paquete cancelada exitosamente: {}", bookingId);
-
-      return BookAndPayResponseDto.builder()
-              .success(true)
-              .message("Reserva de paquete cancelada exitosamente")
-              .booking(convertToBookingResponse(booking))
-              .build();
-
-    } catch (Exception e) {
-      log.error("Error al cancelar reserva de paquete: {}", bookingId, e);
-      return BookAndPayResponseDto.bookingFailed("Error al cancelar: " + e.getMessage());
-    }
-  }
-
-  @Override
-  public Map<String, Object> verifyPackagePrice(Map<String, Object> packageDetails) {
-    log.info("Verificando precio y disponibilidad de paquete");
-
-    try {
-      Map<String, Object> result = new HashMap<>();
-
-      // Verificar vuelo
-      if (packageDetails.containsKey("flightOffer")) {
-        Object flightOffer = packageDetails.get("flightOffer");
-        Object verifiedFlightOffer = flightBookingService.verifyFlightOfferPrice(flightOffer);
-        result.put("flightOffer", verifiedFlightOffer);
-      }
-
-      // Verificar hotel
-      if (packageDetails.containsKey("hotelRateKey")) {
-        String rateKey = (String) packageDetails.get("hotelRateKey");
-        Object verifiedHotelOffer = hotelBookingService.checkRates(rateKey);
-        result.put("hotelOffer", verifiedHotelOffer);
-      }
-
-      // Calcular total del paquete
-      BigDecimal totalPackagePrice = calculateTotalPrice(result);
-      result.put("totalPrice", totalPackagePrice);
-
-      return result;
-    } catch (Exception e) {
-      log.error("Error al verificar precio de paquete", e);
-      throw new ResponseStatusException(
-              HttpStatus.BAD_REQUEST,
-              "Error al verificar precio: " + e.getMessage()
-      );
-    }
+    return null;
   }
 
   // ============================================================================

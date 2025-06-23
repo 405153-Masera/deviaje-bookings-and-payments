@@ -1,12 +1,22 @@
 package masera.deviajebookingsandpayments.entities;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 /**
  * Entidad para reservas de vuelos (datos mínimos).
@@ -30,40 +40,45 @@ public class FlightBooking {
   @Column(name = "external_id", length = 50)
   private String externalId; // ID de Amadeus
 
-  @Column(length = 3, nullable = false)
+  @Column(length = 3)
   private String origin;
 
-  @Column(length = 3, nullable = false)
+  @Column(length = 3)
   private String destination;
 
-  @Column(name = "departure_date", nullable = false)
+  @Column(name = "departure_date")
   private String departureDate;
 
   @Column(name = "return_date")
   private String returnDate;
 
-  @Column(length = 2, nullable = false)
+  @Column(length = 2)
   private String carrier; // Código IATA de aerolínea
 
-  @Column(name = "base_price", nullable = false)
-  private BigDecimal basePrice;
-
-  @Column(nullable = false)
-  private BigDecimal taxes;
+  @Column()
+  private Integer adults;
 
   @Column()
-  @Builder.Default
-  private BigDecimal discounts = BigDecimal.ZERO;
+  private Integer children;
+
+  @Column()
+  private Integer infants;
 
   @Column(name = "total_price", nullable = false)
-  private BigDecimal totalPrice;
+  private BigDecimal totalPrice; // Grand total de Amadeus
 
-  @Column(length = 3, nullable = false)
+  @Column()
+  private BigDecimal taxes;
+
+  @Column(length = 3)
   private String currency;
 
-  @Enumerated(EnumType.STRING)
-  @Column(nullable = false, length = 20)
-  private FlightBookingStatus status;
+  @Column(name = "cancellation_from")
+  private LocalDate cancellationFrom;
+
+  @Column(name = "cancellation_amount")
+  @Builder.Default
+  private BigDecimal cancellationAmount = BigDecimal.ZERO;
 
   @Column(name = "created_datetime")
   private LocalDateTime createdDatetime;
@@ -71,28 +86,8 @@ public class FlightBooking {
   @Column(name = "created_user")
   private Long createdUser;
 
-  @Column(name = "last_updated_datetime")
-  private LocalDateTime lastUpdatedDatetime;
-
-  @Column(name = "last_updated_user")
-  private Long lastUpdatedUser;
-
   @PrePersist
   protected void onCreate() {
     this.createdDatetime = LocalDateTime.now();
-    this.lastUpdatedDatetime = LocalDateTime.now();
-  }
-
-  @PreUpdate
-  protected void onUpdate() {
-    this.lastUpdatedDatetime = LocalDateTime.now();
-  }
-
-  /**
-   * Enum para estados de reserva de vuelos.
-   */
-  public enum FlightBookingStatus {
-    CONFIRMED,
-    CANCELLED
   }
 }

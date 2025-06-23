@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,7 +42,7 @@ public class FlightBookingController {
 
     try {
       BookAndPayResponseDto response = flightBookingService.bookAndPay(request.getBookingRequest(),
-              request.getPaymentRequest());
+              request.getPaymentRequest(), request.getPrices());
 
       if (response.getSuccess()) {
         log.info("Reserva de vuelo exitosa. ID: {}", response.getBooking().getId());
@@ -102,38 +101,6 @@ public class FlightBookingController {
     } catch (Exception e) {
       log.error("Error al obtener detalles de reserva de vuelo: {}", id, e);
       return ResponseEntity.notFound().build();
-    }
-  }
-
-  /**
-   * Cancela una reserva de vuelo.
-   *
-   * @param id ID de la reserva de vuelo
-   * @return respuesta de cancelación
-   */
-  @PutMapping("/bookings/{id}/cancel")
-  public ResponseEntity<BookAndPayResponseDto> cancelFlightBooking(@PathVariable Long id) {
-
-    log.info("Cancelando reserva de vuelo: {}", id);
-
-    try {
-      BookAndPayResponseDto response = flightBookingService.cancelBooking(id);
-
-      if (response.getSuccess()) {
-        return ResponseEntity.ok(response);
-      } else {
-        return ResponseEntity.badRequest().body(response);
-      }
-
-    } catch (Exception e) {
-      log.error("Error al cancelar reserva de vuelo: {}", id, e);
-      BookAndPayResponseDto errorResponse = BookAndPayResponseDto.builder()
-              .success(false)
-              .message("Error al cancelar la reserva")
-              .failureReason("CANCELLATION_ERROR")
-              .detailedError(e.getMessage())
-              .build();
-      return ResponseEntity.internalServerError().body(errorResponse);
     }
   }
 

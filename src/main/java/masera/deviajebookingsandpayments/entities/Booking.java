@@ -11,13 +11,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -39,13 +36,10 @@ public class Booking {
   private Long id;  // Cambiar de UUID a Long
 
   @Column(name = "client_id")
-  private Long clientId;
+  private Integer clientId;
 
   @Column(name = "agent_id")
-  private Long agentId;
-
-  @Column(name = "branch_id")
-  private Long branchId;
+  private Integer agentId;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
@@ -58,9 +52,9 @@ public class Booking {
   @Column(name = "total_amount", nullable = false)
   private BigDecimal totalAmount;
 
-  @Column(length = 3, nullable = false)
+  @Column()
   @Builder.Default
-  private String currency = "ARS";
+  private BigDecimal commission = BigDecimal.ZERO; // AGREGADO: campo commission
 
   @Column()
   @Builder.Default
@@ -69,6 +63,10 @@ public class Booking {
   @Column()
   @Builder.Default
   private BigDecimal taxes = BigDecimal.ZERO;
+
+  @Column(length = 3, nullable = false)
+  @Builder.Default
+  private String currency = "ARS";
 
   @Column(length = 20)
   private String phone;
@@ -82,12 +80,6 @@ public class Booking {
   @Column(name = "created_user")
   private Long createdUser;
 
-  @Column(name = "last_updated_datetime")
-  private LocalDateTime lastUpdatedDatetime;
-
-  @Column(name = "last_updated_user")
-  private Long lastUpdatedUser;
-
   // Relaciones
   @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private List<FlightBooking> flightBookings;
@@ -98,19 +90,10 @@ public class Booking {
   @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private List<Payment> payments;
 
-  @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-  private List<Invoice> invoices;
 
   @PrePersist
   protected void onCreate() {
     this.createdDatetime = LocalDateTime.now();
-    this.lastUpdatedDatetime = LocalDateTime.now();
-
-  }
-
-  @PreUpdate
-  protected void onUpdate() {
-    this.lastUpdatedDatetime = LocalDateTime.now();
   }
 
   /**

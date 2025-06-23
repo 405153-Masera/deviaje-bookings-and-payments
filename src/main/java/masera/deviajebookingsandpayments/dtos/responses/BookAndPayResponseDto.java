@@ -51,13 +51,4 @@ public class BookAndPayResponseDto {
             .detailedError(errorMessage)
             .build();
   }
-
-  public static BookAndPayResponseDto verificationFailed(String errorMessage) {
-    return BookAndPayResponseDto.builder()
-            .success(false)
-            .message("Error en la verificación de precios")
-            .failureReason("VERIFICATION_FAILED")
-            .detailedError(errorMessage)
-            .build();
-  }
 }

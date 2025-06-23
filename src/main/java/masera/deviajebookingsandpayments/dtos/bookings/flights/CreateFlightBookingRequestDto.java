@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import masera.deviajebookingsandpayments.dtos.bookings.travelers.TravelerDto;
+import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 
 
 /**
@@ -19,11 +20,9 @@ import masera.deviajebookingsandpayments.dtos.bookings.travelers.TravelerDto;
 @Builder
 public class CreateFlightBookingRequestDto {
 
-  private Long clientId;
+  private Integer clientId;
 
-  private Long agentId;
-
-  private Long branchId;
+  private Integer agentId;
 
   @NotNull(message = "La oferta de vuelo es obligatoria")
   private FlightOfferDto flightOffer;

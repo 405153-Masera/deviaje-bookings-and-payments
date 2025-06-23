@@ -17,15 +17,11 @@ import masera.deviajebookingsandpayments.dtos.bookings.hotels.CreateHotelBooking
 @Builder
 public class CreatePackageBookingRequestDto {
 
-  @NotNull(message = "El ID del cliente es obligatorio")
-  private Long clientId;
+  private Integer clientId;
 
-  private Long agentId;
-
-  private Long branchId;
+  private Integer agentId;
 
   private CreateFlightBookingRequestDto flightBooking;
 
   private CreateHotelBookingRequestDto hotelBooking;
-
 }

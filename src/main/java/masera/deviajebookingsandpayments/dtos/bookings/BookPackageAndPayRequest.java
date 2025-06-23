@@ -1,4 +1,4 @@
-package masera.deviajebookingsandpayments.dtos;
+package masera.deviajebookingsandpayments.dtos.bookings;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -6,23 +6,22 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 
 /**
- * DTO que combina la reserva y el pago en un solo request.
+ * DTO que representa la solicitud para reservar un paquete y realizar el pago.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BookFlightAndPayRequest {
+public class BookPackageAndPayRequest {
 
 
   @NotNull(message = "Los datos de la reserva son obligatorios")
   @Valid
-  private CreateFlightBookingRequestDto bookingRequest;
+  private CreatePackageBookingRequestDto packageBookingRequest;
 
   @NotNull(message = "Los datos del pago son obligatorios")
   @Valid

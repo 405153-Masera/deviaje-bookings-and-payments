@@ -17,7 +17,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
    * @param clientId ID del cliente
    * @return Lista de reservas del cliente
    */
-  List<Booking> findByClientId(Long clientId);
+  List<Booking> findByClientId(Integer clientId);
 
   /**
    * Encuentra reservas por ID de cliente y tipo.
@@ -26,7 +26,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
    * @param type Tipo de reserva (FLIGHT, HOTEL, PACKAGE)
    * @return Lista de reservas del cliente del tipo especificado
    */
-  List<Booking> findByClientIdAndType(Long clientId, Booking.BookingType type);
+  List<Booking> findByClientIdAndType(Integer clientId, Booking.BookingType type);
 
   /**
    * Encuentra reservas por ID de agente.
@@ -34,13 +34,5 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
    * @param agentId ID del agente
    * @return Lista de reservas del agente
    */
-  List<Booking> findByAgentId(Long agentId);
-
-  /**
-   * Encuentra reservas por ID de sucursal.
-   *
-   * @param branchId ID de la sucursal
-   * @return Lista de reservas de la sucursal
-   */
-  List<Booking> findByBranchId(Long branchId);
+  List<Booking> findByAgentId(Integer agentId);
 }

@@ -1,13 +1,23 @@
 package masera.deviajebookingsandpayments.entities;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+
 
 /**
  * Entidad para reservas de hoteles (datos mínimos).
@@ -31,28 +41,22 @@ public class HotelBooking {
   @Column(name = "external_id", length = 50)
   private String externalId; // Reference de HotelBeds
 
-  @Column(name = "hotel_code", length = 10, nullable = false)
-  private String hotelCode;
-
-  @Column(name = "hotel_name", length = 100, nullable = false)
+  @Column(name = "hotel_name", length = 100)
   private String hotelName;
 
-  @Column(name = "destination_code", length = 10, nullable = false)
-  private String destinationCode;
-
-  @Column(name = "destination_name", length = 50, nullable = false)
+  @Column(name = "destination_name", length = 50)
   private String destinationName;
 
-  @Column(name = "check_in_date", nullable = false)
+  @Column(name = "check_in_date")
   private LocalDate checkInDate;
 
-  @Column(name = "check_out_date", nullable = false)
+  @Column(name = "check_out_date")
   private LocalDate checkOutDate;
 
-  @Column(name = "number_of_nights", nullable = false)
+  @Column(name = "number_of_nights")
   private Integer numberOfNights;
 
-  @Column(name = "number_of_rooms", nullable = false)
+  @Column(name = "number_of_rooms")
   private Integer numberOfRooms;
 
   @Column(nullable = false)
@@ -62,25 +66,21 @@ public class HotelBooking {
   @Builder.Default
   private Integer children = 0;
 
-  @Column(name = "base_price", nullable = false)
-  private BigDecimal basePrice;
-
-  @Column(nullable = false)
-  private BigDecimal taxes;
+  @Column(name = "total_price")
+  private BigDecimal totalPrice; // net de hotelsbeds
 
   @Column()
-  @Builder.Default
-  private BigDecimal discounts = BigDecimal.ZERO;
+  private BigDecimal taxes;
 
-  @Column(name = "total_price", nullable = false)
-  private BigDecimal totalPrice;
-
-  @Column(length = 3, nullable = false)
+  @Column(length = 3)
   private String currency;
 
-  @Enumerated(EnumType.STRING)
-  @Column(nullable = false, length = 20)
-  private HotelBookingStatus status;
+  @Column(name = "cancellation_from")
+  private LocalDate cancellationFrom;
+
+  @Column(name = "cancellation_amount")
+  @Builder.Default
+  private BigDecimal cancellationAmount = BigDecimal.ZERO;
 
   @Column(name = "created_datetime")
   private LocalDateTime createdDatetime;
@@ -88,28 +88,8 @@ public class HotelBooking {
   @Column(name = "created_user")
   private Long createdUser;
 
-  @Column(name = "last_updated_datetime")
-  private LocalDateTime lastUpdatedDatetime;
-
-  @Column(name = "last_updated_user")
-  private Long lastUpdatedUser;
-
   @PrePersist
   protected void onCreate() {
     this.createdDatetime = LocalDateTime.now();
-    this.lastUpdatedDatetime = LocalDateTime.now();
-  }
-
-  @PreUpdate
-  protected void onUpdate() {
-    this.lastUpdatedDatetime = LocalDateTime.now();
-  }
-
-  /**
-   * Enum para estados de reserva de hoteles.
-   */
-  public enum HotelBookingStatus {
-    CONFIRMED,
-    CANCELLED
   }
 }
