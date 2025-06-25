@@ -2,6 +2,8 @@ package masera.deviajebookingsandpayments.services.impl;
 
 import java.util.Map;
 import java.util.Optional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.clients.FlightClient;
@@ -228,6 +230,14 @@ public class FlightBookingServiceImpl implements FlightBookingService {
                                                  String externalId,
                                                  PricesDto prices) {
 
+    String itinerariesJson = null;
+    try {
+      ObjectMapper mapper = new ObjectMapper();
+      itinerariesJson = mapper.writeValueAsString(flightOffer.getItineraries());
+    } catch (Exception e) {
+      log.warn("Error al convertir itinerarios a JSON: {}", e.getMessage());
+    }
+
     FlightBooking flightBooking = FlightBooking.builder()
             .booking(booking)
             .externalId(externalId)
@@ -239,6 +249,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .adults(countAdults(request))
             .children(countChildren(request))
             .infants(countInfants(request))
+            .itineraries(itinerariesJson)
             .totalPrice(prices.getGrandTotal())
             .taxes(prices.getTaxesFlight())
             .currency(prices.getCurrency())
@@ -263,6 +274,9 @@ public class FlightBookingServiceImpl implements FlightBookingService {
                                           PricesDto payment,
                                           String externalId) {
 
+    String holderName = request.getTravelers().getFirst().getName().getFirstName() + ", " +
+            request.getTravelers().getFirst().getName().getLastName();
+
     // 1. Crear booking principal
     Booking booking = Booking.builder()
             .clientId(request.getClientId())
@@ -274,6 +288,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .discount(payment.getDiscount())
             .taxes(payment.getTaxesFlight().add(payment.getTaxesHotel()))
             .currency(payment.getCurrency())
+            .holderName(holderName)
             .email(request.getTravelers().getFirst().getContact().getEmailAddress())
             .phone(request.getTravelers().getFirst()
                     .getContact().getPhones().getFirst().getNumber())

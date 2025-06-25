@@ -68,6 +68,9 @@ public class Booking {
   @Builder.Default
   private String currency = "ARS";
 
+  @Column(name = "holder_name", length = 120)
+  private String holderName;
+
   @Column(length = 20)
   private String phone;
 
