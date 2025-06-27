@@ -48,13 +48,7 @@ public class HotelBookingController {
               request.getPrices()
               );
 
-      if (response.getSuccess()) {
-        log.info("Reserva de hotel exitosa. ID: {}", response.getBooking().getId());
-        return ResponseEntity.ok(response);
-      } else {
-        log.warn("Fallo en reserva de hotel: {}", response.getDetailedError());
-        return ResponseEntity.badRequest().body(response);
-      }
+      return ResponseEntity.ok(response);
 
     } catch (Exception e) {
       log.error("Error inesperado al procesar reserva de hotel", e);
@@ -64,7 +58,7 @@ public class HotelBookingController {
               .failureReason("INTERNAL_ERROR")
               .detailedError(e.getMessage())
               .build();
-      return ResponseEntity.internalServerError().body(errorResponse);
+      return ResponseEntity.ok(errorResponse);
     }
   }
 

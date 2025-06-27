@@ -47,6 +47,12 @@ public class HotelBooking {
   @Column(name = "destination_name", length = 50)
   private String destinationName;
 
+  @Column(name = "room_name", length = 50)
+  private String roomName;
+
+  @Column(name = "board_name", length = 50)
+  private String boardName;
+
   @Column(name = "check_in_date")
   private LocalDate checkInDate;
 

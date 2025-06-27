@@ -44,13 +44,8 @@ public class FlightBookingController {
       BookAndPayResponseDto response = flightBookingService.bookAndPay(request.getBookingRequest(),
               request.getPaymentRequest(), request.getPrices());
 
-      if (response.getSuccess()) {
-        log.info("Reserva de vuelo exitosa. ID: {}", response.getBooking().getId());
-        return ResponseEntity.ok(response);
-      } else {
-        log.warn("Fallo en reserva de vuelo: {}", response.getDetailedError());
-        return ResponseEntity.badRequest().body(response);
-      }
+      // Siempre devolver HTTP 200 (OK) y dejar que el campo success indique el resultado
+      return ResponseEntity.ok(response);
 
     } catch (Exception e) {
       log.error("Error inesperado al procesar reserva de vuelo", e);
@@ -60,7 +55,9 @@ public class FlightBookingController {
               .failureReason("INTERNAL_ERROR")
               .detailedError(e.getMessage())
               .build();
-      return ResponseEntity.internalServerError().body(errorResponse);
+
+      // También devolver HTTP 200 para errores no controlados
+      return ResponseEntity.ok(errorResponse);
     }
   }
 

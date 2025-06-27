@@ -86,8 +86,6 @@ public class HotelBookingServiceImpl implements HotelBookingService {
         return BookAndPayResponseDto.paymentFailed(paymentResult.getErrorMessage());
       }
 
-
-
       // 5. Actualizar el pago con la reserva
       updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
 
@@ -253,7 +251,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
                                                PricesDto prices,
                                                Map<String, Object> hotelDetails) {
 
-    String firstRateKey = request.getRooms().get(0).getRateKey();
+    String firstRateKey = request.getRooms().getFirst().getRateKey();
     LocalDate checkIn = extractCheckInDate(firstRateKey);
     LocalDate checkOut = extractCheckOutDate(firstRateKey);
 
@@ -262,6 +260,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .externalId(externalId)
             .hotelName(extractHotelName(hotelDetails))
             .destinationName(extractDestinationName(hotelDetails))
+            .roomName(request.getRooms().getFirst().getRoomName())
+            .boardName(request.getRooms().getFirst().getBoardName())
             .checkInDate(checkIn)
             .checkOutDate(checkOut)
             .numberOfNights((int) ChronoUnit.DAYS.between(checkIn, checkOut))

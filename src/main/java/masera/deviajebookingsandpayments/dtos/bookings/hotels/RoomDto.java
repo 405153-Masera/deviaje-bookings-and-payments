@@ -18,6 +18,10 @@ public class RoomDto {
   @NotBlank(message = "El rateKey es obligatorio")
   private String rateKey;
 
+  private String roomName;
+
+  private String boardName;
+
   @NotEmpty(message = "La lista de huéspedes no puede estar vacía")
   private List<PaxDto> paxes;
 }

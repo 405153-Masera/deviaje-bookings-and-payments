@@ -59,6 +59,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
       // 1. Crear la reserva en Amadeus
       log.info("Creando reserva en Amadeus");
       Object amadeusBookingData = prepareAmadeusBookingData(bookingRequest);
+
+      log.info("Datos de reserva Amadeus: {}", amadeusBookingData);
       Object amadeusResponse = flightClient.createFlightOrder(amadeusBookingData).block();
 
       if (amadeusResponse == null) {
