@@ -60,8 +60,7 @@ public class FlightClient {
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Precio verificado para la oferta"))
             .doOnError(error -> {
-              if (error instanceof WebClientResponseException) {
-                WebClientResponseException webError = (WebClientResponseException) error;
+              if (error instanceof WebClientResponseException webError) {
                 log.error("Error al verificar la oferta - Status: {}, Body: {}",
                         webError.getStatusCode(), webError.getResponseBodyAsString());
               } else {
@@ -96,8 +95,7 @@ public class FlightClient {
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Reserva de vuelo creada exitosamente"))
             .doOnError(error -> {
-              if (error instanceof WebClientResponseException) {
-                WebClientResponseException webError = (WebClientResponseException) error;
+              if (error instanceof WebClientResponseException webError) {
                 log.error("Error al crear reserva de vuelo - Status: {}, Body: {}",
                         webError.getStatusCode(), webError.getResponseBodyAsString());
               } else {

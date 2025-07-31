@@ -75,6 +75,58 @@ public class BookingController {
     }
   }
 
+  // Agregar este método al BookingController existente
+
+  /**
+   * Obtiene todas las reservas (solo para administradores).
+   *
+   * @return lista de todas las reservas
+   */
+  @GetMapping("/admin/all")
+  public ResponseEntity<List<BookingResponseDto>> getAllBookings() {
+    log.info("Obteniendo todas las reservas (administrador)");
+
+    try {
+      List<Booking> bookings = bookingRepository.findAll();
+      List<BookingResponseDto> response = bookings.stream()
+              .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
+              .collect(Collectors.toList());
+
+      log.info("Se encontraron {} reservas", response.size());
+      return ResponseEntity.ok(response);
+    } catch (Exception e) {
+      log.error("Error al obtener todas las reservas", e);
+      return ResponseEntity.internalServerError().build();
+    }
+  }
+
+  /**
+   * Obtiene reservas filtradas por estado.
+   *
+   * @param status estado de la reserva (PENDING, CONFIRMED, CANCELLED, COMPLETED)
+   * @return lista de reservas
+   */
+  @GetMapping("/admin/status/{status}")
+  public ResponseEntity<List<BookingResponseDto>> getBookingsByStatus(@PathVariable String status) {
+    log.info("Obteniendo reservas con estado: {}", status);
+
+    try {
+      Booking.BookingStatus bookingStatus = Booking.BookingStatus.valueOf(status.toUpperCase());
+      List<Booking> bookings = bookingRepository.findByStatus(bookingStatus);
+      List<BookingResponseDto> response = bookings.stream()
+              .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
+              .collect(Collectors.toList());
+
+      return ResponseEntity.ok(response);
+    } catch (IllegalArgumentException e) {
+      log.error("Estado de reserva inválido: {}", status);
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      log.error("Error al obtener reservas por estado", e);
+      return ResponseEntity.internalServerError().build();
+    }
+  }
+
   /**
    * Obtiene el historial de reservas de un agente.
    *

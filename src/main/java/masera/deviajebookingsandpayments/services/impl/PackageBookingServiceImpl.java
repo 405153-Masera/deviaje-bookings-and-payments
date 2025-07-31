@@ -147,10 +147,10 @@ public class PackageBookingServiceImpl implements PackageBookingService {
   private Booking createPackageBooking(CreatePackageBookingRequestDto request, PricesDto prices) {
 
     // Obtener email y teléfono del primer viajero del vuelo
-    String email = request.getFlightBooking().getTravelers().get(0)
+    String email = request.getFlightBooking().getTravelers().getFirst()
             .getContact().getEmailAddress();
-    String phone = request.getFlightBooking().getTravelers().get(0)
-            .getContact().getPhones().get(0).getNumber();
+    String phone = request.getFlightBooking().getTravelers().getFirst()
+            .getContact().getPhones().getFirst().getNumber();
 
     Booking booking = Booking.builder()
             .clientId(request.getClientId())

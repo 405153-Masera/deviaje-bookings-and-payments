@@ -1,5 +1,6 @@
 package masera.deviajebookingsandpayments.repositories;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import masera.deviajebookingsandpayments.entities.Booking;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -35,4 +36,32 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
    * @return Lista de reservas del agente
    */
   List<Booking> findByAgentId(Integer agentId);
+
+  // Agregar este método al BookingRepository existente
+
+  /**
+   * Encuentra reservas por estado.
+   *
+   * @param status Estado de la reserva
+   * @return Lista de reservas con el estado especificado
+   */
+  List<Booking> findByStatus(Booking.BookingStatus status);
+
+  /**
+   * Encuentra reservas por rango de fechas.
+   *
+   * @param startDate Fecha inicial
+   * @param endDate Fecha final
+   * @return Lista de reservas en el rango de fechas
+   */
+  List<Booking> findByCreatedDatetimeBetween(LocalDateTime startDate, LocalDateTime endDate);
+
+  /**
+   * Encuentra reservas por cliente y estado.
+   *
+   * @param clientId ID del cliente
+   * @param status Estado de la reserva
+   * @return Lista de reservas del cliente con el estado especificado
+   */
+  List<Booking> findByClientIdAndStatus(Integer clientId, Booking.BookingStatus status);
 }

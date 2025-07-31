@@ -61,31 +61,11 @@ public class Payment {
 
   @Column
   private LocalDateTime date;
-
-  @Column(name = "created_datetime")
-  private LocalDateTime createdDatetime;
-
-  @Column(name = "created_user")
-  private Long createdUser;
-
-  @Column(name = "last_updated_datetime")
-  private LocalDateTime lastUpdatedDatetime;
-
-  @Column(name = "last_updated_user")
-  private Long lastUpdatedUser;
-
   @PrePersist
   protected void onCreate() {
-    this.createdDatetime = LocalDateTime.now();
-    this.lastUpdatedDatetime = LocalDateTime.now();
     if (this.date == null) {
       this.date = LocalDateTime.now();
     }
-  }
-
-  @PreUpdate
-  protected void onUpdate() {
-    this.lastUpdatedDatetime = LocalDateTime.now();
   }
 
   /**

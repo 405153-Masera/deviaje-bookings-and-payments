@@ -40,10 +40,8 @@ public class FlightBooking {
   @Column(name = "external_id", length = 50)
   private String externalId; // ID de Amadeus
 
-  @Column(length = 3)
   private String origin;
 
-  @Column(length = 3)
   private String destination;
 
   @Column(name = "departure_date")
@@ -85,9 +83,6 @@ public class FlightBooking {
 
   @Column(name = "created_datetime")
   private LocalDateTime createdDatetime;
-
-  @Column(name = "created_user")
-  private Long createdUser;
 
   @PrePersist
   protected void onCreate() {

@@ -33,7 +33,10 @@ public class Booking {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY) // Esto hace el auto increment
-  private Long id;  // Cambiar de UUID a Long
+  private Long id;
+
+  @Column(name = "booking_reference",  unique = true)
+  private String bookingReference;
 
   @Column(name = "client_id")
   private Integer clientId;
@@ -79,9 +82,6 @@ public class Booking {
 
   @Column(name = "created_datetime")
   private LocalDateTime createdDatetime;
-
-  @Column(name = "created_user")
-  private Long createdUser;
 
   // Relaciones
   @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

@@ -91,9 +91,6 @@ public class HotelBooking {
   @Column(name = "created_datetime")
   private LocalDateTime createdDatetime;
 
-  @Column(name = "created_user")
-  private Long createdUser;
-
   @PrePersist
   protected void onCreate() {
     this.createdDatetime = LocalDateTime.now();
