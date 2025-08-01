@@ -5,7 +5,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.bookings.BookPackageAndPayRequest;
-import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.PackageBookingService;
 import org.springframework.http.ResponseEntity;
@@ -35,12 +35,12 @@ public class PackageBookingController {
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
-  public ResponseEntity<BookAndPayResponseDto> bookPackageAndPay(
+  public ResponseEntity<BaseResponse> bookPackageAndPay(
           @Valid @RequestBody BookPackageAndPayRequest request) {
 
 
     try {
-      BookAndPayResponseDto response = packageBookingService.bookAndPay(
+      BaseResponse response = packageBookingService.bookAndPay(
               request.getPackageBookingRequest(),
               request.getPaymentRequest(),
               request.getPrices()
@@ -56,7 +56,7 @@ public class PackageBookingController {
 
     } catch (Exception e) {
       log.error("Error inesperado al procesar reserva de paquete", e);
-      BookAndPayResponseDto errorResponse = BookAndPayResponseDto.builder()
+      BaseResponse errorResponse = BaseResponse.builder()
               .success(false)
               .message("Error interno del servidor")
               .failureReason("INTERNAL_ERROR")
@@ -113,11 +113,11 @@ public class PackageBookingController {
    * @return respuesta de cancelación
    */
   @PutMapping("/{id}/cancel")
-  public ResponseEntity<BookAndPayResponseDto> cancelPackageBooking(@PathVariable Long id) {
+  public ResponseEntity<BaseResponse> cancelPackageBooking(@PathVariable Long id) {
     log.info("Cancelando reserva de paquete: {}", id);
 
     try {
-      BookAndPayResponseDto response = packageBookingService.cancelBooking(id);
+      BaseResponse response = packageBookingService.cancelBooking(id);
 
       if (response.getSuccess()) {
         return ResponseEntity.ok(response);
@@ -127,7 +127,7 @@ public class PackageBookingController {
 
     } catch (Exception e) {
       log.error("Error al cancelar reserva de paquete: {}", id, e);
-      BookAndPayResponseDto errorResponse = BookAndPayResponseDto.builder()
+      BaseResponse errorResponse = BaseResponse.builder()
               .success(false)
               .message("Error al cancelar la reserva")
               .failureReason("CANCELLATION_ERROR")

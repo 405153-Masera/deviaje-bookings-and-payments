@@ -11,7 +11,7 @@ import masera.deviajebookingsandpayments.clients.HotelClient;
 import masera.deviajebookingsandpayments.dtos.bookings.CreatePackageBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
-import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
@@ -44,8 +44,8 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
   @Override
   @Transactional
-  public BookAndPayResponseDto bookAndPay(CreatePackageBookingRequestDto bookingRequest,
-                                          PaymentRequestDto paymentRequest, PricesDto prices) {
+  public BaseResponse bookAndPay(CreatePackageBookingRequestDto bookingRequest,
+                                 PaymentRequestDto paymentRequest, PricesDto prices) {
 
     log.info("Iniciando proceso de reserva y pago para paquete. Cliente: {}",
             bookingRequest.getClientId());
@@ -63,7 +63,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
       if (flightExternalId == null) {
         log.error("Error al crear reserva de vuelo");
-        return BookAndPayResponseDto.bookingFailed("Error al crear la reserva de vuelo");
+        return BaseResponse.bookingFailed("Error al crear la reserva de vuelo");
       }
 
       // 3. CREAR RESERVA DE HOTEL
@@ -73,7 +73,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
       if (hotelExternalId == null) {
         log.error("Error al crear reserva de hotel");
-        return BookAndPayResponseDto.bookingFailed("Error al crear la reserva de hotel");
+        return BaseResponse.bookingFailed("Error al crear la reserva de hotel");
       }
 
       // 4. PROCESAR PAGO
@@ -82,7 +82,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
       if (!"APPROVED".equals(paymentResult.getStatus())) {
         log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-        return BookAndPayResponseDto.paymentFailed(
+        return BaseResponse.paymentFailed(
                 "Pago rechazado. " + paymentResult.getErrorMessage());
       }
 
@@ -93,11 +93,11 @@ public class PackageBookingServiceImpl implements PackageBookingService {
       BookingResponseDto bookingResponse = flightBookingService.convertToBookingResponse(packageBooking);
 
       log.info("Reserva de paquete completada exitosamente. ID: {}", packageBooking.getId());
-      return BookAndPayResponseDto.success(bookingResponse);
+      return BaseResponse.success(bookingResponse);
 
     } catch (Exception e) {
       log.error("Error inesperado en reserva de paquete", e);
-      return BookAndPayResponseDto.bookingFailed("Error interno: " + e.getMessage());
+      return BaseResponse.bookingFailed("Error interno: " + e.getMessage());
     }
   }
 
@@ -125,7 +125,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
   @Override
   @Transactional
-  public BookAndPayResponseDto cancelBooking(Long bookingId) {
+  public BaseResponse cancelBooking(Long bookingId) {
     log.info("Cancelando reserva de paquete: {}", bookingId);
 
     Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);
@@ -134,7 +134,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
     }
 
     // TODO: Implementar lógica de cancelación
-    return BookAndPayResponseDto.bookingFailed("Cancelación de paquetes no implementada aún");
+    return BaseResponse.bookingFailed("Cancelación de paquetes no implementada aún");
   }
 
   // ============================================================================

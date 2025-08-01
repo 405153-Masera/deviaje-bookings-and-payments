@@ -101,8 +101,8 @@ public class FlightClient {
               } else {
                 log.error("Error al crear reserva de vuelo: {}", error.getMessage());
               }
-            })
-            .onErrorResume(throwable -> Mono.empty());
+            });
+            //.onErrorResume(throwable -> Mono.empty());
   }
 
   /**

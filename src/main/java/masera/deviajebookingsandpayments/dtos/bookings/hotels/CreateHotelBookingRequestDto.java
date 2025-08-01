@@ -9,6 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -23,6 +25,9 @@ public class CreateHotelBookingRequestDto {
   private Integer clientId;
 
   private Integer agentId;
+
+  private LocalDate cancellationFrom;
+  private BigDecimal cancellationAmount;
 
   @NotNull(message = "El titular de la reserva es obligatorio")
   private HolderDto holder;

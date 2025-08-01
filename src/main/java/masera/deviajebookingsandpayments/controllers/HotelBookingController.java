@@ -5,7 +5,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.bookings.hotels.BookHotelAndPayRequest;
-import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
 import org.springframework.http.ResponseEntity;
@@ -35,14 +35,14 @@ public class HotelBookingController {
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
-  public ResponseEntity<BookAndPayResponseDto> bookHotelAndPay(
+  public ResponseEntity<BaseResponse> bookHotelAndPay(
           @Valid @RequestBody BookHotelAndPayRequest request) {
 
     log.info("Iniciando reserva y pago de hotel para cliente: {}",
             request.getBookingRequest().getClientId());
 
     try {
-      BookAndPayResponseDto response = hotelBookingService.bookAndPay(
+      BaseResponse response = hotelBookingService.bookAndPay(
               request.getBookingRequest(),
               request.getPaymentRequest(),
               request.getPrices()
@@ -52,7 +52,7 @@ public class HotelBookingController {
 
     } catch (Exception e) {
       log.error("Error inesperado al procesar reserva de hotel", e);
-      BookAndPayResponseDto errorResponse = BookAndPayResponseDto.builder()
+      BaseResponse errorResponse = BaseResponse.builder()
               .success(false)
               .message("Error interno del servidor")
               .failureReason("INTERNAL_ERROR")

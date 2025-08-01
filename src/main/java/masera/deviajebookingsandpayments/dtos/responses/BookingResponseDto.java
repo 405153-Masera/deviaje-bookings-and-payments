@@ -18,19 +18,19 @@ import java.time.LocalDateTime;
 public class BookingResponseDto {
 
   private Long id;
+  private String bookingReference;
   private Integer clientId;
   private Integer agentId;
   private String status;
-  private String type; // "FLIGHT", "HOTEL", "PACKAGE" - debe coincidir con el campo de la BD
+  private String type; // "FLIGHT", "HOTEL", "PACKAGE"
   private BigDecimal totalAmount;
   private BigDecimal commission;
   private BigDecimal discount;
   private BigDecimal taxes;
   private String currency;
-  private String holderName; // Campo faltante
-  private String phone; // Campo faltante
-  private String email; // Campo faltante
-  private LocalDateTime createdDatetime; // Campo faltante
-  private Integer createdUser; //
+  private String holderName;
+  private String phone;
+  private String email;
+  private LocalDateTime createdDatetime;
 
 }

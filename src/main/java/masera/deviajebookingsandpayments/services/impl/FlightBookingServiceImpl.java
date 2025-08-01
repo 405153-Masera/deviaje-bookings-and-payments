@@ -2,6 +2,7 @@ package masera.deviajebookingsandpayments.services.impl;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeoutException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -11,13 +12,14 @@ import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBooki
 import masera.deviajebookingsandpayments.dtos.bookings.flights.FlightOfferDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
-import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.FlightBooking;
 import masera.deviajebookingsandpayments.entities.Payment;
+import masera.deviajebookingsandpayments.exceptions.FlightBookingException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.FlightBookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
@@ -27,6 +29,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -46,8 +49,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
   @Override
   @Transactional
-  public BookAndPayResponseDto bookAndPay(CreateFlightBookingRequestDto bookingRequest,
-                                          PaymentRequestDto paymentRequest, PricesDto prices) {
+  public BaseResponse<String> bookAndPay(CreateFlightBookingRequestDto bookingRequest,
+                                 PaymentRequestDto paymentRequest, PricesDto prices) {
 
     log.info("Iniciando proceso de reserva y pago para vuelo. Cliente: {}",
             bookingRequest.getClientId());
@@ -57,18 +60,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     try {
 
       // 1. Crear la reserva en Amadeus
-      log.info("Creando reserva en Amadeus");
       Object amadeusBookingData = prepareAmadeusBookingData(bookingRequest);
-
-      log.info("Datos de reserva Amadeus: {}", amadeusBookingData);
-      Object amadeusResponse = flightClient.createFlightOrder(amadeusBookingData).block();
-
-      if (amadeusResponse == null) {
-        log.error("Reserva falló en Amadeus: respuesta nula");
-        return BookAndPayResponseDto.bookingFailed(
-                "El vuelo seleccionado ya no está disponible. "
-                        + "Por favor, realice una nueva búsqueda");
-      }
+      Object amadeusResponse = callAmadeusCreateOrder(amadeusBookingData);
 
       // 2. Extraer datos de la respuesta de Amadeus
       String externalId = extractExternalId(amadeusResponse);
@@ -85,7 +78,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
       if (!"APPROVED".equals(paymentResult.getStatus())) {
         log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-        return BookAndPayResponseDto.paymentFailed("Pago rechazado. "
+        return BaseResponse.paymentFailed("Pago rechazado. "
                 + "Datos incorrectos o fondos insuficientes. ");
       }
 
@@ -96,11 +89,14 @@ public class FlightBookingServiceImpl implements FlightBookingService {
       BookingResponseDto bookingResponse = convertToBookingResponse(savedBooking);
 
       log.info("Reserva de vuelo completada exitosamente. ID: {}", savedBooking.getId());
-      return BookAndPayResponseDto.success(bookingResponse);
+      return BaseResponse.success(bookingResponse);
 
-    } catch (Exception e) {
+    } catch (FlightBookingException e) {
+      return BaseResponse.error(e.getMessage());
+    }
+    catch (Exception e) {
       log.error("Error inesperado en reserva de vuelo", e);
-      return BookAndPayResponseDto.bookingFailed("Error en el servidor");
+      return BaseResponse.bookingFailed("Error en el servidor");
     }
   }
 
@@ -189,6 +185,37 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   }
 
   /**
+   * Llama a Amadeus para crear la reserva de vuelo con manejo de errores específico
+   */
+  @Override
+  public Object callAmadeusCreateOrder(Object amadeusBookingData) throws FlightBookingException {
+    try {
+      log.info("Creando reserva en Amadeus");
+      Object amadeusResponse = flightClient.createFlightOrder(amadeusBookingData).block();
+
+      if (amadeusResponse == null) {
+        log.error("Amadeus devolvió respuesta vacía");
+        throw new FlightBookingException("El vuelo seleccionado ya no está disponible. Realiza una nueva búsqueda.");
+      }
+
+      return amadeusResponse;
+
+    } catch (WebClientResponseException e) {
+      log.error("Error de Amadeus: Status={}, Body={}", e.getStatusCode(), e.getResponseBodyAsString());
+
+      if (e.getStatusCode().value() == 400) {
+        throw new FlightBookingException("El vuelo seleccionado ya no está disponible. Por favor, realiza una nueva búsqueda.");
+      } else {
+        throw new FlightBookingException("El servicio de vuelos está temporalmente no disponible. Intenta más tarde.");
+      }
+
+    } catch (Exception e) {
+      log.error("Error general conectando con Amadeus", e);
+      throw new FlightBookingException("Error conectando con el servicio de vuelos. Intenta más tarde.");
+    }
+  }
+
+  /**
    * Actualiza el pago con el ID de la reserva.
    */
   @Override
@@ -255,6 +282,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .totalPrice(prices.getGrandTotal())
             .taxes(prices.getTaxesFlight())
             .currency(prices.getCurrency())
+            .cancellationFrom(request.getCancellationFrom())
+            .cancellationAmount(request.getCancellationAmount())
             .build();
 
     return flightBookingRepository.save(flightBooking);

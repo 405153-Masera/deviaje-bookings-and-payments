@@ -3,7 +3,7 @@ package masera.deviajebookingsandpayments.services.interfaces;
 import masera.deviajebookingsandpayments.dtos.bookings.hotels.CreateHotelBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
-import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
@@ -27,8 +27,8 @@ public interface HotelBookingService {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con resultado de la operación
    */
-  BookAndPayResponseDto bookAndPay(CreateHotelBookingRequestDto bookingRequest,
-                                   PaymentRequestDto paymentRequest, PricesDto prices);
+  BaseResponse bookAndPay(CreateHotelBookingRequestDto bookingRequest,
+                          PaymentRequestDto paymentRequest, PricesDto prices);
 
   /**
    * Obtiene información básica de una reserva de hotel desde la BD.

@@ -105,6 +105,7 @@ END;
 
 RETURN code;
 END$$
+
 DELIMITER ;
 
 -- trigger para guardar el codigo de referencia
@@ -116,6 +117,6 @@ BEGIN
     UPDATE bookings
     SET booking_reference = generate_booking_code(NEW.id, NEW.type)
     WHERE id = NEW.id;
-    END$$
-    DELIMITER ;
+END$$
+DELIMITER ;
 

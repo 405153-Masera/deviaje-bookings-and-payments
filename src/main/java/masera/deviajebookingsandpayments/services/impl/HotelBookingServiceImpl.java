@@ -15,7 +15,7 @@ import masera.deviajebookingsandpayments.dtos.bookings.hotels.PaxDto;
 import masera.deviajebookingsandpayments.dtos.bookings.hotels.RoomDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
-import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
@@ -48,9 +48,9 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
   @Override
   @Transactional
-  public BookAndPayResponseDto bookAndPay(CreateHotelBookingRequestDto bookingRequest,
-                                          PaymentRequestDto paymentRequest,
-                                          PricesDto prices) {
+  public BaseResponse bookAndPay(CreateHotelBookingRequestDto bookingRequest,
+                                 PaymentRequestDto paymentRequest,
+                                 PricesDto prices) {
 
     log.info("Iniciando proceso de reserva y pago para hotel. Cliente: {}",
             bookingRequest.getClientId());
@@ -63,7 +63,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
       Object hotelBedsResponse = hotelClient.createBooking(hotelBedsRequest).block();
 
       if (hotelBedsResponse == null) {
-        return BookAndPayResponseDto.bookingFailed(
+        return BaseResponse.bookingFailed(
                 "La habitación ya no está disponible."
                         + " Por favor, realice una nueva búsqueda");
       }
@@ -83,7 +83,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
       if (!"APPROVED".equals(paymentResult.getStatus())) {
         log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-        return BookAndPayResponseDto.paymentFailed(paymentResult.getErrorMessage());
+        return BaseResponse.paymentFailed(paymentResult.getErrorMessage());
       }
 
       // 5. Actualizar el pago con la reserva
@@ -93,11 +93,11 @@ public class HotelBookingServiceImpl implements HotelBookingService {
       BookingResponseDto bookingResponse = convertToBookingResponse(savedBooking);
 
       log.info("Reserva de hotel completada exitosamente. ID: {}", savedBooking.getId());
-      return BookAndPayResponseDto.success(bookingResponse);
+      return BaseResponse.success(bookingResponse);
 
     } catch (Exception e) {
       log.error("Error inesperado en reserva de hotel", e);
-      return BookAndPayResponseDto.bookingFailed("Error interno: " + e.getMessage());
+      return BaseResponse.bookingFailed("Error interno: " + e.getMessage());
     }
   }
 
@@ -271,6 +271,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .totalPrice(prices.getNet())
             .taxes(prices.getTaxesHotel())
             .currency(prices.getCurrency())
+            .cancellationFrom(request.getCancellationFrom())
+            .cancellationAmount(request.getCancellationAmount())
             .build();
 
     return hotelBookingRepository.save(hotelBooking);

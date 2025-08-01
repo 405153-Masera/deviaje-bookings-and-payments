@@ -2,6 +2,9 @@ package masera.deviajebookingsandpayments.dtos.bookings.flights;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,6 +26,10 @@ public class CreateFlightBookingRequestDto {
   private Integer clientId;
 
   private Integer agentId;
+
+  //Política de cancelación
+  private LocalDate cancellationFrom;
+  private BigDecimal cancellationAmount;
 
   @NotNull(message = "La oferta de vuelo es obligatoria")
   private FlightOfferDto flightOffer;

@@ -5,7 +5,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.BookFlightAndPayRequest;
-import masera.deviajebookingsandpayments.dtos.responses.BookAndPayResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.FlightBookingService;
 import org.springframework.http.ResponseEntity;
@@ -34,14 +34,14 @@ public class FlightBookingController {
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
-  public ResponseEntity<BookAndPayResponseDto> bookFlightAndPay(
+  public ResponseEntity<BaseResponse> bookFlightAndPay(
           @Valid @RequestBody BookFlightAndPayRequest request) {
 
     log.info("Iniciando reserva y pago de vuelo para cliente: {}",
             request.getBookingRequest().getClientId());
 
     try {
-      BookAndPayResponseDto response = flightBookingService.bookAndPay(request.getBookingRequest(),
+      BaseResponse response = flightBookingService.bookAndPay(request.getBookingRequest(),
               request.getPaymentRequest(), request.getPrices());
 
       // Siempre devolver HTTP 200 (OK) y dejar que el campo success indique el resultado
@@ -49,7 +49,7 @@ public class FlightBookingController {
 
     } catch (Exception e) {
       log.error("Error inesperado al procesar reserva de vuelo", e);
-      BookAndPayResponseDto errorResponse = BookAndPayResponseDto.builder()
+      BaseResponse errorResponse = BaseResponse.builder()
               .success(false)
               .message("Error interno del servidor")
               .failureReason("INTERNAL_ERROR")
