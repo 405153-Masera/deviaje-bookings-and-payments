@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,35 +34,15 @@ public class PackageBookingController {
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
-  public ResponseEntity<BaseResponse> bookPackageAndPay(
+  public ResponseEntity<BaseResponse<String>> bookPackageAndPay(
           @Valid @RequestBody BookPackageAndPayRequest request) {
 
-
-    try {
-      BaseResponse response = packageBookingService.bookAndPay(
+    BaseResponse<String> response = packageBookingService.bookAndPay(
               request.getPackageBookingRequest(),
               request.getPaymentRequest(),
               request.getPrices()
-      );
-
-      if (response.getSuccess()) {
-        log.info("Reserva de paquete exitosa. ID: {}", response.getBooking().getId());
-        return ResponseEntity.ok(response);
-      } else {
-        log.warn("Fallo en reserva de paquete: {}", response.getDetailedError());
-        return ResponseEntity.badRequest().body(response);
-      }
-
-    } catch (Exception e) {
-      log.error("Error inesperado al procesar reserva de paquete", e);
-      BaseResponse errorResponse = BaseResponse.builder()
-              .success(false)
-              .message("Error interno del servidor")
-              .failureReason("INTERNAL_ERROR")
-              .detailedError(e.getMessage())
-              .build();
-      return ResponseEntity.internalServerError().body(errorResponse);
-    }
+    );
+    return ResponseEntity.ok(response);
   }
 
   /**
@@ -103,37 +82,6 @@ public class PackageBookingController {
     } catch (Exception e) {
       log.error("Error al obtener detalles de reserva de paquete: {}", id, e);
       return ResponseEntity.notFound().build();
-    }
-  }
-
-  /**
-   * Cancela una reserva de paquete.
-   *
-   * @param id ID de la reserva
-   * @return respuesta de cancelación
-   */
-  @PutMapping("/{id}/cancel")
-  public ResponseEntity<BaseResponse> cancelPackageBooking(@PathVariable Long id) {
-    log.info("Cancelando reserva de paquete: {}", id);
-
-    try {
-      BaseResponse response = packageBookingService.cancelBooking(id);
-
-      if (response.getSuccess()) {
-        return ResponseEntity.ok(response);
-      } else {
-        return ResponseEntity.badRequest().body(response);
-      }
-
-    } catch (Exception e) {
-      log.error("Error al cancelar reserva de paquete: {}", id, e);
-      BaseResponse errorResponse = BaseResponse.builder()
-              .success(false)
-              .message("Error al cancelar la reserva")
-              .failureReason("CANCELLATION_ERROR")
-              .detailedError(e.getMessage())
-              .build();
-      return ResponseEntity.internalServerError().body(errorResponse);
     }
   }
 }

@@ -157,7 +157,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .currency(paymentRequest.getCurrency())
                 .status(createdPayment.getStatus().toUpperCase())
                 .errorCode(createdPayment.getStatusDetail())
-                .errorMessage("Estado del pago: " + createdPayment.getStatus())
+                .errorMessage(getPaymentErrorMessage(createdPayment.getStatusDetail()))
                 .date(LocalDateTime.now())
                 .build();
       }
@@ -379,5 +379,18 @@ public class PaymentServiceImpl implements PaymentService {
             .paymentProvider(payment.getPaymentProvider())
             .date(payment.getDate())
             .build();
+  }
+
+  private String getPaymentErrorMessage(String statusDetail) {
+    if (statusDetail == null) return "Pago no aprobado";
+
+    return switch (statusDetail) {
+      case "cc_rejected_insufficient_amount" -> "Fondos insuficientes en tu tarjeta.";
+      case "cc_rejected_bad_filled_card_number" -> "Número de tarjeta incorrecto.";
+      case "cc_rejected_bad_filled_security_code" -> "Código CVV incorrecto.";
+      case "cc_rejected_card_disabled" -> "Tu tarjeta está deshabilitada.";
+      case "cc_rejected_bad_filled_date" -> "Fecha de vencimiento incorrecta.";
+      default -> "Tu pago fue rechazado. Verifica los datos de tu tarjeta.";
+    };
   }
 }

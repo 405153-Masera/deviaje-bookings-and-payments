@@ -6,8 +6,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import masera.deviajebookingsandpayments.clients.FlightClient;
-import masera.deviajebookingsandpayments.clients.HotelClient;
 import masera.deviajebookingsandpayments.dtos.bookings.CreatePackageBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
@@ -15,13 +13,14 @@ import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
-import masera.deviajebookingsandpayments.entities.FlightBooking;
-import masera.deviajebookingsandpayments.entities.HotelBooking;
+import masera.deviajebookingsandpayments.exceptions.FlightBookingException;
+import masera.deviajebookingsandpayments.exceptions.HotelBookingException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.services.interfaces.FlightBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PackageBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,12 +38,10 @@ public class PackageBookingServiceImpl implements PackageBookingService {
   private final PaymentService paymentService;
   private final FlightBookingService flightBookingService;
   private final HotelBookingService hotelBookingService;
-  private final FlightClient flightClient;
-  private final HotelClient hotelClient;
 
   @Override
   @Transactional
-  public BaseResponse bookAndPay(CreatePackageBookingRequestDto bookingRequest,
+  public BaseResponse<String> bookAndPay(CreatePackageBookingRequestDto bookingRequest,
                                  PaymentRequestDto paymentRequest, PricesDto prices) {
 
     log.info("Iniciando proceso de reserva y pago para paquete. Cliente: {}",
@@ -58,23 +55,13 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
       // 2. CREAR RESERVA DE VUELO
       log.info("Creando reserva de vuelo para paquete");
-      String flightExternalId = createFlightReservation(
-              bookingRequest, packageBooking, prices);
+      createFlightReservation(bookingRequest, packageBooking, prices);
 
-      if (flightExternalId == null) {
-        log.error("Error al crear reserva de vuelo");
-        return BaseResponse.bookingFailed("Error al crear la reserva de vuelo");
-      }
 
       // 3. CREAR RESERVA DE HOTEL
       log.info("Creando reserva de hotel para paquete");
-      String hotelExternalId = createHotelReservation(
-              bookingRequest, packageBooking, prices);
+      createHotelReservation(bookingRequest, packageBooking, prices);
 
-      if (hotelExternalId == null) {
-        log.error("Error al crear reserva de hotel");
-        return BaseResponse.bookingFailed("Error al crear la reserva de hotel");
-      }
 
       // 4. PROCESAR PAGO
       log.info("Procesando pago para reserva de paquete");
@@ -82,8 +69,8 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
       if (!"APPROVED".equals(paymentResult.getStatus())) {
         log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-        return BaseResponse.paymentFailed(
-                "Pago rechazado. " + paymentResult.getErrorMessage());
+
+        return BaseResponse.error(paymentResult.getErrorMessage());
       }
 
       // 5. ASOCIAR PAGO CON LA RESERVA
@@ -93,11 +80,16 @@ public class PackageBookingServiceImpl implements PackageBookingService {
       BookingResponseDto bookingResponse = flightBookingService.convertToBookingResponse(packageBooking);
 
       log.info("Reserva de paquete completada exitosamente. ID: {}", packageBooking.getId());
-      return BaseResponse.success(bookingResponse);
+      return BaseResponse.success(bookingResponse.getBookingReference(), "Reserva del paquete exitosa");
 
+    } catch (FlightBookingException | HotelBookingException e) {
+      return BaseResponse.error(e.getMessage());
+    } catch (DataAccessException e) {
+      return BaseResponse.error("No pudimos guardar tu reserva. Intenta nuevamente.");
     } catch (Exception e) {
-      log.error("Error inesperado en reserva de paquete", e);
-      return BaseResponse.bookingFailed("Error interno: " + e.getMessage());
+      log.error("Error inesperado en reserva de vuelo", e);
+      return BaseResponse.error("Error interno del servidor. "
+              + "Por favor, intenta más tarde o contacta a soporte.");
     }
   }
 
@@ -107,7 +99,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
     List<Booking> bookings = bookingRepository.findByClientIdAndType(clientId, Booking.BookingType.PACKAGE);
     return bookings.stream()
-            .map(booking -> flightBookingService.convertToBookingResponse(booking))
+            .map(flightBookingService::convertToBookingResponse)
             .collect(Collectors.toList());
   }
 
@@ -121,20 +113,6 @@ public class PackageBookingServiceImpl implements PackageBookingService {
     }
 
     return flightBookingService.convertToBookingResponse(bookingOpt.get());
-  }
-
-  @Override
-  @Transactional
-  public BaseResponse cancelBooking(Long bookingId) {
-    log.info("Cancelando reserva de paquete: {}", bookingId);
-
-    Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);
-    if (bookingOpt.isEmpty() || !Booking.BookingType.PACKAGE.equals(bookingOpt.get().getType())) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Reserva de paquete no encontrada");
-    }
-
-    // TODO: Implementar lógica de cancelación
-    return BaseResponse.bookingFailed("Cancelación de paquetes no implementada aún");
   }
 
   // ============================================================================
@@ -172,70 +150,53 @@ public class PackageBookingServiceImpl implements PackageBookingService {
   /**
    * Crea la reserva de vuelo usando las APIs correspondientes.
    */
-  private String createFlightReservation(CreatePackageBookingRequestDto request,
-                                         Booking packageBooking,
-                                         PricesDto prices) {
-    try {
-      // 1. Preparar datos para Amadeus
-      Object amadeusBookingData = flightBookingService.prepareAmadeusBookingData(
+  private void createFlightReservation(CreatePackageBookingRequestDto request,
+                                       Booking packageBooking,
+                                       PricesDto prices) {
+
+    // 1. Preparar datos para Amadeus
+    Object amadeusBookingData = flightBookingService.prepareAmadeusBookingData(
               request.getFlightBooking());
 
-      // 2. Crear reserva en Amadeus
-      Object amadeusResponse = flightClient.createFlightOrder(amadeusBookingData).block();
+    // 2. Crear reserva en Amadeus
+    Object amadeusResponse = flightBookingService.callAmadeusCreateOrder(amadeusBookingData);
 
-      if (amadeusResponse == null) {
-        log.error("Error al crear reserva de vuelo en Amadeus");
-        return null;
-      }
+    // 3. Extraer external ID
+    String externalId = flightBookingService.extractExternalId(amadeusResponse);
 
-      // 3. Extraer external ID
-      String externalId = flightBookingService.extractExternalId(amadeusResponse);
-
-      // 4. Crear entidad FlightBooking asociada al paquete
-      FlightBooking flightBooking = flightBookingService.createFlightBookingEntity(
+    // 4. Crear entidad FlightBooking asociada al paquete
+    flightBookingService.createFlightBookingEntity(
               request.getFlightBooking(),
               request.getFlightBooking().getFlightOffer(),
               packageBooking,
               externalId,
               prices);
 
-      log.info("Reserva de vuelo creada con external ID: {}", externalId);
-      return externalId;
-
-    } catch (Exception e) {
-      log.error("Error al crear reserva de vuelo para paquete", e);
-      return null;
-    }
+    log.info("Reserva de vuelo creada con external ID: {}", externalId);
   }
 
   /**
    * Crea la reserva de hotel usando las APIs correspondientes.
    */
-  private String createHotelReservation(CreatePackageBookingRequestDto request,
-                                        Booking packageBooking,
-                                        PricesDto prices) {
-    try {
-      // 1. Preparar datos para HotelBeds
-      Object hotelBedsBookingData = hotelBookingService.prepareHotelBedsBookingRequest(
+  private void createHotelReservation(CreatePackageBookingRequestDto request,
+                                      Booking packageBooking,
+                                      PricesDto prices) {
+
+    // 1. Preparar datos para HotelBeds
+    Object hotelBedsBookingData = hotelBookingService.prepareHotelBedsBookingRequest(
               request.getHotelBooking());
 
-      // 2. Crear reserva en HotelBeds
-      Object hotelBedsResponse = hotelClient.createBooking(hotelBedsBookingData).block();
+    // 2. Crear reserva en HotelBeds (puede lanzar HotelBookingException)
+    Object hotelBedsResponse = hotelBookingService.callHotelBedsCreateBooking((Map<String, Object>) hotelBedsBookingData);
 
-      if (hotelBedsResponse == null) {
-        log.error("Error al crear reserva de hotel en HotelBeds");
-        return null;
-      }
+    // 3. Extraer external ID y detalles
+    String externalId = hotelBookingService.extractExternalId(hotelBedsResponse);
 
-      // 3. Extraer external ID y detalles
-      String externalId = hotelBookingService.extractExternalId(hotelBedsResponse);
+    // 4. Extraer hotelDetails usando el método público del servicio
+    Map<String, Object> hotelDetails =  hotelBookingService.extractHotelDetails(hotelBedsResponse);
 
-      // 4. Extraer hotelDetails usando el método público del servicio
-      Map<String, Object> hotelDetails = ((HotelBookingServiceImpl) hotelBookingService)
-              .extractHotelDetails(hotelBedsResponse);
-
-      // 5. Crear entidad HotelBooking asociada al paquete con hotelDetails
-      HotelBooking hotelBooking = ((HotelBookingServiceImpl) hotelBookingService)
+    // 5. Crear entidad HotelBooking asociada al paquete con hotelDetails
+    ((HotelBookingServiceImpl) hotelBookingService)
               .createHotelBookingEntity(
                       request.getHotelBooking(),
                       packageBooking,
@@ -243,12 +204,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
                       prices,
                       hotelDetails);
 
-      log.info("Reserva de hotel creada con external ID: {}", externalId);
-      return externalId;
+    log.info("Reserva de hotel creada con external ID: {}", externalId);
 
-    } catch (Exception e) {
-      log.error("Error al crear reserva de hotel para paquete", e);
-      return null;
-    }
   }
 }

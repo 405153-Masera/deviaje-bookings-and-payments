@@ -9,6 +9,7 @@ import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.FlightBooking;
+import masera.deviajebookingsandpayments.exceptions.FlightBookingException;
 import org.springframework.stereotype.Service;
 
 /**

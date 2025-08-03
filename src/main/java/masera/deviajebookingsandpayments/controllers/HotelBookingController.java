@@ -35,31 +35,19 @@ public class HotelBookingController {
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
-  public ResponseEntity<BaseResponse> bookHotelAndPay(
+  public ResponseEntity<BaseResponse<String>> bookHotelAndPay(
           @Valid @RequestBody BookHotelAndPayRequest request) {
 
     log.info("Iniciando reserva y pago de hotel para cliente: {}",
             request.getBookingRequest().getClientId());
 
-    try {
-      BaseResponse response = hotelBookingService.bookAndPay(
-              request.getBookingRequest(),
-              request.getPaymentRequest(),
-              request.getPrices()
-              );
+    BaseResponse<String> response = hotelBookingService.bookAndPay(
+            request.getBookingRequest(),
+            request.getPaymentRequest(),
+            request.getPrices());
 
       return ResponseEntity.ok(response);
 
-    } catch (Exception e) {
-      log.error("Error inesperado al procesar reserva de hotel", e);
-      BaseResponse errorResponse = BaseResponse.builder()
-              .success(false)
-              .message("Error interno del servidor")
-              .failureReason("INTERNAL_ERROR")
-              .detailedError(e.getMessage())
-              .build();
-      return ResponseEntity.ok(errorResponse);
-    }
   }
 
   /**

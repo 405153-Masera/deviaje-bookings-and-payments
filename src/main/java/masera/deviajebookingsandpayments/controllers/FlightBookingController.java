@@ -34,31 +34,13 @@ public class FlightBookingController {
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
-  public ResponseEntity<BaseResponse> bookFlightAndPay(
+  public ResponseEntity<BaseResponse<String>> bookFlightAndPay(
           @Valid @RequestBody BookFlightAndPayRequest request) {
 
-    log.info("Iniciando reserva y pago de vuelo para cliente: {}",
-            request.getBookingRequest().getClientId());
-
-    try {
-      BaseResponse response = flightBookingService.bookAndPay(request.getBookingRequest(),
+    BaseResponse<String> response = flightBookingService.bookAndPay(request.getBookingRequest(),
               request.getPaymentRequest(), request.getPrices());
 
-      // Siempre devolver HTTP 200 (OK) y dejar que el campo success indique el resultado
-      return ResponseEntity.ok(response);
-
-    } catch (Exception e) {
-      log.error("Error inesperado al procesar reserva de vuelo", e);
-      BaseResponse errorResponse = BaseResponse.builder()
-              .success(false)
-              .message("Error interno del servidor")
-              .failureReason("INTERNAL_ERROR")
-              .detailedError(e.getMessage())
-              .build();
-
-      // También devolver HTTP 200 para errores no controlados
-      return ResponseEntity.ok(errorResponse);
-    }
+    return ResponseEntity.ok(response);
   }
 
   /**

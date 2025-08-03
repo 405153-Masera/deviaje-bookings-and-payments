@@ -59,8 +59,7 @@ public class HotelClient {
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Verificación de tarifa completada exitosamente"))
             .doOnError(error -> {
-              if (error instanceof WebClientResponseException) {
-                WebClientResponseException webError = (WebClientResponseException) error;
+              if (error instanceof WebClientResponseException webError) {
                 log.error("Error al verificar la oferta - Status: {}, Body: {}",
                         webError.getStatusCode(), webError.getResponseBodyAsString());
               } else {
@@ -91,15 +90,14 @@ public class HotelClient {
             .bodyToMono(Object.class)
             .doOnSuccess(response -> log.info("Reserva creada exitosamente"))
             .doOnError(error -> {
-              if (error instanceof WebClientResponseException) {
-                WebClientResponseException webError = (WebClientResponseException) error;
+              if (error instanceof WebClientResponseException webError) {
                 log.error("Error al crear reserva de hotel - Status: {}, Body: {}",
                         webError.getStatusCode(), webError.getResponseBodyAsString());
               } else {
                 log.error("Error al crear reserva de vuelo: {}", error.getMessage());
               }
-            })
-            .onErrorResume(throwable -> Mono.empty());
+            });
+            //.onErrorResume(throwable -> Mono.empty());
   }
 
 

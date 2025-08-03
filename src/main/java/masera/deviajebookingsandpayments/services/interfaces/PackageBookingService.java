@@ -21,7 +21,7 @@ public interface PackageBookingService {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con resultado de la operación
    */
-  BaseResponse bookAndPay(CreatePackageBookingRequestDto bookingRequest,
+  BaseResponse<String> bookAndPay(CreatePackageBookingRequestDto bookingRequest,
                           PaymentRequestDto paymentRequest,
                           PricesDto prices);
 
@@ -40,12 +40,4 @@ public interface PackageBookingService {
    * @return detalles de la reserva
    */
   BookingResponseDto getPackageBookingDetails(Long bookingId);
-
-  /**
-   * Cancela una reserva de paquete.
-   *
-   * @param bookingId ID de la reserva a cancelar
-   * @return respuesta con el resultado de la cancelación
-   */
-  BaseResponse cancelBooking(Long bookingId);
 }

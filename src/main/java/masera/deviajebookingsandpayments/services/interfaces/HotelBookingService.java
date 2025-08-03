@@ -8,6 +8,7 @@ import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.HotelBooking;
+import masera.deviajebookingsandpayments.exceptions.HotelBookingException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +28,7 @@ public interface HotelBookingService {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con resultado de la operación
    */
-  BaseResponse bookAndPay(CreateHotelBookingRequestDto bookingRequest,
+  BaseResponse<String> bookAndPay(CreateHotelBookingRequestDto bookingRequest,
                           PaymentRequestDto paymentRequest, PricesDto prices);
 
   /**
@@ -55,6 +56,8 @@ public interface HotelBookingService {
   Object checkRates(String rateKey);
 
   Map<String, Object> prepareHotelBedsBookingRequest(CreateHotelBookingRequestDto request);
+
+  Object callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest) throws HotelBookingException;
 
   void updatePaymentWithBookingId(Long paymentId, Long bookingId);
 

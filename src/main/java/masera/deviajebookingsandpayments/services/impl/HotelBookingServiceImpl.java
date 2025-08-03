@@ -22,14 +22,17 @@ import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.HotelBooking;
 import masera.deviajebookingsandpayments.entities.Payment;
+import masera.deviajebookingsandpayments.exceptions.HotelBookingException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.HotelBookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import org.modelmapper.ModelMapper;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 /**
  * Implementación del servicio de reservas de hoteles.
@@ -48,7 +51,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
   @Override
   @Transactional
-  public BaseResponse bookAndPay(CreateHotelBookingRequestDto bookingRequest,
+  public BaseResponse<String> bookAndPay(CreateHotelBookingRequestDto bookingRequest,
                                  PaymentRequestDto paymentRequest,
                                  PricesDto prices) {
 
@@ -58,15 +61,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     try {
 
       // 1. Crear reserva en HotelBeds
-      log.info("Creando reserva en HotelBeds");
       Map<String, Object> hotelBedsRequest = prepareHotelBedsBookingRequest(bookingRequest);
-      Object hotelBedsResponse = hotelClient.createBooking(hotelBedsRequest).block();
-
-      if (hotelBedsResponse == null) {
-        return BaseResponse.bookingFailed(
-                "La habitación ya no está disponible."
-                        + " Por favor, realice una nueva búsqueda");
-      }
+      Object hotelBedsResponse = callHotelBedsCreateBooking(hotelBedsRequest);
 
       // 2. Extraer datos de la respuesta de HotelBeds
       String externalId = extractExternalId(hotelBedsResponse);
@@ -83,7 +79,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
       if (!"APPROVED".equals(paymentResult.getStatus())) {
         log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-        return BaseResponse.paymentFailed(paymentResult.getErrorMessage());
+
+        return BaseResponse.error(paymentResult.getErrorMessage());
       }
 
       // 5. Actualizar el pago con la reserva
@@ -93,11 +90,16 @@ public class HotelBookingServiceImpl implements HotelBookingService {
       BookingResponseDto bookingResponse = convertToBookingResponse(savedBooking);
 
       log.info("Reserva de hotel completada exitosamente. ID: {}", savedBooking.getId());
-      return BaseResponse.success(bookingResponse);
+      return BaseResponse.success(bookingResponse.getBookingReference(), "Reserva de la habitación exitosa");
 
+    } catch (HotelBookingException e) {
+      return BaseResponse.error(e.getMessage());
+    } catch (DataAccessException e) {
+      return BaseResponse.error("No pudimos guardar tu reserva. Intenta nuevamente.");
     } catch (Exception e) {
       log.error("Error inesperado en reserva de hotel", e);
-      return BaseResponse.bookingFailed("Error interno: " + e.getMessage());
+      return BaseResponse.error("Error interno del servidor. "
+              + "Por favor, intenta más tarde o contacta a soporte.");
     }
   }
 
@@ -152,7 +154,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     }
   }
 
-  // MÉTODOS PRIVADOS DE UTILIDAD
+  // MÉTODOS DE UTILIDAD
 
   /**
    * Prepara la solicitud de reserva para HotelBeds.
@@ -179,6 +181,37 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     bookingRequest.put("tolerance", request.getTolerance());
 
     return bookingRequest;
+  }
+
+  /**
+   * Llama a HotelBeds para crear la reserva con manejo de errores específico
+   */
+  @Override
+  public Object callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest) throws HotelBookingException {
+    try {
+      log.info("Creando reserva en HotelBeds");
+      Object hotelBedsResponse = hotelClient.createBooking(hotelBedsRequest).block();
+
+      if (hotelBedsResponse == null) {
+        log.error("HotelBeds devolvió respuesta vacía");
+        throw new HotelBookingException("La habitación ya no está disponible. Realiza una nueva búsqueda.");
+      }
+
+      return hotelBedsResponse;
+
+    } catch (WebClientResponseException e) {
+      log.error("Error de HotelBeds: Status={}, Body={}", e.getStatusCode(), e.getResponseBodyAsString());
+
+      if (e.getStatusCode().value() == 400) {
+        throw new HotelBookingException("La habitación seleccionada ya no está disponible. Busca otra opción.");
+      } else {
+        throw new HotelBookingException("El servicio de hoteles está temporalmente no disponible. Intenta en unos minutos.");
+      }
+
+    } catch (Exception e) {
+      log.error("Error general conectando con HotelBeds", e);
+      throw new HotelBookingException("Error conectando con el servicio de hoteles. Intenta más tarde.");
+    }
   }
 
   /**

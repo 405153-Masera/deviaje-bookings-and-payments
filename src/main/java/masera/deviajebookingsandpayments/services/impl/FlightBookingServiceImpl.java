@@ -2,8 +2,6 @@ package masera.deviajebookingsandpayments.services.impl;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeoutException;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +24,7 @@ import masera.deviajebookingsandpayments.repositories.PaymentRepository;
 import masera.deviajebookingsandpayments.services.interfaces.FlightBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import org.modelmapper.ModelMapper;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,8 +77,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
       if (!"APPROVED".equals(paymentResult.getStatus())) {
         log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-        return BaseResponse.paymentFailed("Pago rechazado. "
-                + "Datos incorrectos o fondos insuficientes. ");
+
+        return BaseResponse.error(paymentResult.getErrorMessage());
       }
 
       // 5. Asociar el pago con la reserva
@@ -89,14 +88,16 @@ public class FlightBookingServiceImpl implements FlightBookingService {
       BookingResponseDto bookingResponse = convertToBookingResponse(savedBooking);
 
       log.info("Reserva de vuelo completada exitosamente. ID: {}", savedBooking.getId());
-      return BaseResponse.success(bookingResponse);
+      return BaseResponse.success(bookingResponse.getBookingReference(), "Reserva de vuelo exitosa");
 
     } catch (FlightBookingException e) {
       return BaseResponse.error(e.getMessage());
-    }
-    catch (Exception e) {
+    } catch (DataAccessException e) {
+      return BaseResponse.error("No pudimos guardar tu reserva. Intenta nuevamente.");
+    } catch (Exception e) {
       log.error("Error inesperado en reserva de vuelo", e);
-      return BaseResponse.bookingFailed("Error en el servidor");
+      return BaseResponse.error("Error interno del servidor. "
+              + "Por favor, intenta más tarde o contacta a soporte.");
     }
   }
 
