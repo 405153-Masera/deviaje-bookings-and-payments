@@ -64,26 +64,6 @@ public class FlightBookingController {
   }
 
   /**
-   * Obtiene los detalles completos de una reserva (llama a Amadeus API).
-   *
-   * @param id ID de la reserva de vuelo
-   * @return detalles completos desde Amadeus
-   */
-  @GetMapping("/bookings/{id}/details")
-  public ResponseEntity<Object> getFlightBookingDetails(@PathVariable Long id) {
-
-    log.info("Obteniendo detalles completos de reserva de vuelo: {}", id);
-
-    try {
-      Object fullDetails = flightBookingService.getFullBookingDetails(id);
-      return ResponseEntity.ok(fullDetails);
-    } catch (Exception e) {
-      log.error("Error al obtener detalles de reserva de vuelo: {}", id, e);
-      return ResponseEntity.notFound().build();
-    }
-  }
-
-  /**
    * Verifica disponibilidad y precio de una oferta de vuelo.
    *
    * @param flightOfferData Datos de la oferta a verificar

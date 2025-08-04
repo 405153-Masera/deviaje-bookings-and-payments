@@ -1,5 +1,6 @@
 package masera.deviajebookingsandpayments.services.impl;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -84,7 +85,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
     } catch (FlightBookingException | HotelBookingException e) {
       return BaseResponse.error(e.getMessage());
-    } catch (DataAccessException e) {
+    } catch ( DataAccessException e) {
       return BaseResponse.error("No pudimos guardar tu reserva. Intenta nuevamente.");
     } catch (Exception e) {
       log.error("Error inesperado en reserva de vuelo", e);
@@ -129,6 +130,8 @@ public class PackageBookingServiceImpl implements PackageBookingService {
             .getContact().getEmailAddress();
     String phone = request.getFlightBooking().getTravelers().getFirst()
             .getContact().getPhones().getFirst().getNumber();
+    String countryCallingCode = request.getFlightBooking().getTravelers().getFirst()
+            .getContact().getPhones().getFirst().getCountryCallingCode();
 
     Booking booking = Booking.builder()
             .clientId(request.getClientId())
@@ -142,9 +145,14 @@ public class PackageBookingServiceImpl implements PackageBookingService {
             .currency(prices.getCurrency())
             .email(email)
             .phone(phone)
+            .countryCallingCode(countryCallingCode)
             .build();
 
-    return bookingRepository.save(booking);
+    Booking savedBooking = bookingRepository.save(booking);
+
+    String bookingReference = flightBookingService.generateBookingReference(savedBooking.getId(), savedBooking.getType());
+    savedBooking.setBookingReference(bookingReference);
+    return bookingRepository.save(savedBooking);
   }
 
   /**
@@ -196,8 +204,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
     Map<String, Object> hotelDetails =  hotelBookingService.extractHotelDetails(hotelBedsResponse);
 
     // 5. Crear entidad HotelBooking asociada al paquete con hotelDetails
-    ((HotelBookingServiceImpl) hotelBookingService)
-              .createHotelBookingEntity(
+     hotelBookingService.createHotelBookingEntity(
                       request.getHotelBooking(),
                       packageBooking,
                       externalId,

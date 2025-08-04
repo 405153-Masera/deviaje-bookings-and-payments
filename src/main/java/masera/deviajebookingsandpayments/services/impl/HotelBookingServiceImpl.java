@@ -1,6 +1,7 @@
 package masera.deviajebookingsandpayments.services.impl;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
@@ -214,6 +215,20 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     }
   }
 
+  @Override
+  public String generateBookingReference(Long bookingId, Booking.BookingType type) {
+    String prefix = switch (type) {
+      case FLIGHT -> "FL";
+      case HOTEL -> "HT";
+      case PACKAGE -> "PK";
+    };
+
+    String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+    String paddedId = String.format("%05d", bookingId);
+
+    return prefix + "-" + date + "-" + paddedId;
+  }
+
   /**
    * Convierte un objeto RoomDto a un Map para la API de HotelBeds.
    */
@@ -273,16 +288,15 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
   @Override
   public Map<String, Object> extractHotelDetails(Object hotelBedsResponse) {
-    // Extraer detalles del hotel de la respuesta
-    // Implementar según la estructura real
     return (Map<String, Object>) hotelBedsResponse;
   }
 
-  public HotelBooking createHotelBookingEntity(CreateHotelBookingRequestDto request,
-                                               Booking booking,
-                                               String externalId,
-                                               PricesDto prices,
-                                               Map<String, Object> hotelDetails) {
+  @Override
+  public void createHotelBookingEntity(CreateHotelBookingRequestDto request,
+                                       Booking booking,
+                                       String externalId,
+                                       PricesDto prices,
+                                       Map<String, Object> hotelDetails) {
 
     String firstRateKey = request.getRooms().getFirst().getRateKey();
     LocalDate checkIn = extractCheckInDate(firstRateKey);
@@ -308,7 +322,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .cancellationAmount(request.getCancellationAmount())
             .build();
 
-    return hotelBookingRepository.save(hotelBooking);
+    hotelBookingRepository.save(hotelBooking);
   }
 
   @Transactional
@@ -332,9 +346,14 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .currency(payment.getCurrency())
             .email(request.getHolder().getEmail())
             .phone(request.getHolder().getPhone())
+            .countryCallingCode(request.getHolder().getCountryCallingCode())
             .build();
 
     Booking savedBooking = bookingRepository.save(booking);
+
+    String bookingReference = generateBookingReference(savedBooking.getId(), savedBooking.getType());
+    savedBooking.setBookingReference(bookingReference);
+    savedBooking = bookingRepository.save(savedBooking);
 
     createHotelBookingEntity(request, savedBooking, externalId, payment, hotelDetails);
     return savedBooking;

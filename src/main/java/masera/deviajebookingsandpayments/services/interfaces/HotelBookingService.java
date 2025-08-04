@@ -59,11 +59,19 @@ public interface HotelBookingService {
 
   Object callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest) throws HotelBookingException;
 
+  String generateBookingReference(Long bookingId, Booking.BookingType type);
+
   void updatePaymentWithBookingId(Long paymentId, Long bookingId);
 
   String extractExternalId(Object hotelBedsResponse);
 
   Map<String, Object> extractHotelDetails(Object hotelBedsResponse);
+
+  void createHotelBookingEntity(CreateHotelBookingRequestDto request,
+                                Booking booking,
+                                String externalId,
+                                PricesDto prices,
+                                Map<String, Object> hotelDetails);
 
   @Transactional
   Booking saveBookingInDatabase(CreateHotelBookingRequestDto request,

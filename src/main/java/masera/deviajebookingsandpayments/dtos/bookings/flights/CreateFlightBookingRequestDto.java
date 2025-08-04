@@ -27,6 +27,9 @@ public class CreateFlightBookingRequestDto {
 
   private Integer agentId;
 
+  private String origin;
+  private String destination;
+
   //Política de cancelación
   private LocalDate cancellationFrom;
   private BigDecimal cancellationAmount;

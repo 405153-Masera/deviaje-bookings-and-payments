@@ -36,13 +36,6 @@ public interface FlightBookingService {
    */
   FlightBookingResponseDto getBasicBookingInfo(Long bookingId);
 
-  /**
-   * Obtiene detalles completos de una reserva desde Amadeus API.
-   *
-   * @param bookingId ID de la reserva
-   * @return detalles completos desde la API externa
-   */
-  Object getFullBookingDetails(Long bookingId);
 
   /**
    * Verifica disponibilidad y precio de una oferta de vuelo.
@@ -70,11 +63,11 @@ public interface FlightBookingService {
    */
   String extractExternalId(Object amadeusResponse);
 
-  FlightBooking createFlightBookingEntity(CreateFlightBookingRequestDto request,
-                                          FlightOfferDto flightOffer,
-                                          Booking booking,
-                                          String externalId,
-                                          PricesDto prices);
+  void createFlightBookingEntity(CreateFlightBookingRequestDto request,
+                                 FlightOfferDto flightOffer,
+                                 Booking booking,
+                                 String externalId,
+                                 PricesDto prices);
 
   /**
    * Guarda la reserva de vuelo en la base de datos.
@@ -92,6 +85,8 @@ public interface FlightBookingService {
 
   Object callAmadeusCreateOrder(Object amadeusBookingData) throws FlightBookingException;
 
+  String generateBookingReference(Long bookingId, Booking.BookingType type);
+
   /**
    * Actualiza el pago con el ID de la reserva.
    *
@@ -99,22 +94,6 @@ public interface FlightBookingService {
    * @param bookingId ID de la reserva
    */
   void updatePaymentWithBookingId(Long paymentId, Long bookingId);
-
-  /**
-   * Extrae el origen del primer segmento del primer itinerario.
-   *
-   * @param offer la oferta de vuelo
-   * @return el código IATA del origen
-   */
-  String extractOrigin(FlightOfferDto offer);
-
-  /**
-   * Extrae el destino final del primer itinerario.
-   *
-   * @param offer la oferta de vuelo
-   * @return el código IATA del destino
-   */
-  String extractDestination(FlightOfferDto offer);
 
   /**
    * Extrae la fecha de salida del primer segmento.

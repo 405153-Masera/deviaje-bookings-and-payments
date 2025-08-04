@@ -74,6 +74,9 @@ public class Booking {
   @Column(name = "holder_name", length = 120)
   private String holderName;
 
+  @Column(name = "country_calling_code", length = 5)
+  private String countryCallingCode;
+
   @Column(length = 20)
   private String phone;
 

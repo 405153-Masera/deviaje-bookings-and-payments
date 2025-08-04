@@ -1,5 +1,7 @@
 package masera.deviajebookingsandpayments.services.impl;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Optional;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -116,35 +118,6 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   }
 
   @Override
-  public Object getFullBookingDetails(Long bookingId) {
-    log.info("Obteniendo detalles completos de reserva: {}", bookingId);
-
-    // 1. Obtener externalId de nuestra BD
-    Optional<FlightBooking> flightBooking = flightBookingRepository.findById(bookingId);
-
-    if (flightBooking.isEmpty()) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-              "Reserva no encontrada: " + bookingId);
-    }
-
-    String externalId = flightBooking.get().getExternalId();
-
-    if (externalId == null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-              "ExternalId no disponible para la reserva: " + bookingId);
-    }
-
-    try {
-      // 2. Llamar a Amadeus API para obtener detalles completos
-      return flightClient.getFlightOrder(externalId).block();
-    } catch (Exception e) {
-      log.error("Error al obtener detalles de Amadeus: {}", externalId, e);
-      throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-              "No se pudieron obtener los detalles de la reserva");
-    }
-  }
-
-  @Override
   public Object verifyFlightOfferPrice(Object flightOfferData) {
     log.info("Verificando disponibilidad y precio de oferta de vuelo");
 
@@ -212,8 +185,22 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
     } catch (Exception e) {
       log.error("Error general conectando con Amadeus", e);
-      throw new FlightBookingException("Error conectando con el servicio de vuelos. Intenta más tarde.");
+      throw new FlightBookingException("Error conectando con el servicio de vuelos. Intenta de nuevo.");
     }
+  }
+
+  @Override
+  public String generateBookingReference(Long bookingId, Booking.BookingType type) {
+    String prefix = switch (type) {
+      case FLIGHT -> "FL";
+      case HOTEL -> "HT";
+      case PACKAGE -> "PK";
+    };
+
+    String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+    String paddedId = String.format("%05d", bookingId);
+
+    return prefix + "-" + date + "-" + paddedId;
   }
 
   /**
@@ -254,11 +241,11 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   }
 
   @Override
-  public FlightBooking createFlightBookingEntity(CreateFlightBookingRequestDto request,
-                                                 FlightOfferDto flightOffer,
-                                                 Booking booking,
-                                                 String externalId,
-                                                 PricesDto prices) {
+  public void createFlightBookingEntity(CreateFlightBookingRequestDto request,
+                                        FlightOfferDto flightOffer,
+                                        Booking booking,
+                                        String externalId,
+                                        PricesDto prices) {
 
     String itinerariesJson = null;
     try {
@@ -271,8 +258,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     FlightBooking flightBooking = FlightBooking.builder()
             .booking(booking)
             .externalId(externalId)
-            .origin(extractOrigin(flightOffer))
-            .destination(extractDestination(flightOffer))
+            .origin(request.getOrigin())
+            .destination(request.getDestination())
             .departureDate(extractDepartureDate(flightOffer))
             .returnDate(extractReturnDate(flightOffer))
             .carrier(extractCarrier(flightOffer))
@@ -287,7 +274,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .cancellationAmount(request.getCancellationAmount())
             .build();
 
-    return flightBookingRepository.save(flightBooking);
+    flightBookingRepository.save(flightBooking);
   }
 
   /**
@@ -324,43 +311,18 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .email(request.getTravelers().getFirst().getContact().getEmailAddress())
             .phone(request.getTravelers().getFirst()
                     .getContact().getPhones().getFirst().getNumber())
+            .countryCallingCode(request.getTravelers().getFirst()
+                    .getContact().getPhones().getFirst().getCountryCallingCode())
             .build();
 
     Booking savedBooking = bookingRepository.save(booking);
 
+    String bookingReference = generateBookingReference(savedBooking.getId(), savedBooking.getType());
+    savedBooking.setBookingReference(bookingReference);
+    savedBooking = bookingRepository.save(savedBooking);
+
     createFlightBookingEntity(request, flightOffer, savedBooking, externalId, payment);
     return savedBooking;
-  }
-
-
-  /**
-   * Extrae el origen del primer segmento del primer itinerario de la oferta de vuelo.
-   *
-   * @param offer la oferta de vuelo
-   * @return el código IATA del origen o "XXX" si no se encuentra
-   */
-  @Override
-  public String extractOrigin(FlightOfferDto offer) {
-    // Extraer origen del primer segmento del primer itinerario
-    if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
-            && offer.getItineraries().getFirst().getSegments() != null
-            && !offer.getItineraries().getFirst().getSegments().isEmpty()) {
-      return offer.getItineraries().getFirst()
-              .getSegments().getFirst().getDeparture().getIataCode();
-    }
-    return "XXX"; // Código de fallback
-  }
-
-  public String extractDestination(FlightOfferDto offer) {
-    // Extraer destino final del primer itinerario
-    if (offer != null && offer.getItineraries() != null && !offer.getItineraries().isEmpty()
-            && offer.getItineraries().getFirst().getSegments() != null
-            && !offer.getItineraries().getFirst().getSegments().isEmpty()) {
-      int lastIndex = offer.getItineraries().getFirst().getSegments().size() - 1;
-      return offer.getItineraries().getFirst()
-              .getSegments().get(lastIndex).getArrival().getIataCode();
-    }
-    return "XXX"; // Código de fallback
   }
 
   @Override
