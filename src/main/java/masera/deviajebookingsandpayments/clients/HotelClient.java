@@ -4,7 +4,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.configs.HotelbedsConfig;
-import masera.deviajebookingsandpayments.utils.AmadeusErrorHandler;
+import masera.deviajebookingsandpayments.utils.ErrorHandler;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -22,10 +22,13 @@ import reactor.core.publisher.Mono;
 public class HotelClient {
 
   private final WebClient webClient;
+
   private final HotelbedsConfig hotelbedsConfig;
-  private final AmadeusErrorHandler errorHandler;
+
+  private final ErrorHandler errorHandler;
 
   private static final String CHECK_RATES_ENDPOINT = "/hotel-api/1.0/checkrates";
+
   private static final String BOOKING_ENDPOINT = "/hotel-api/1.0/bookings";
 
 
@@ -67,7 +70,7 @@ public class HotelClient {
               }
             })
             .onErrorResume(WebClientResponseException.class, e -> {
-              throw errorHandler.handleAmadeusError(e);
+              throw errorHandler.handleHotelBedsError(e);
             });
   }
 
@@ -96,8 +99,10 @@ public class HotelClient {
               } else {
                 log.error("Error al crear reserva de vuelo: {}", error.getMessage());
               }
+            })
+            .onErrorResume(WebClientResponseException.class, e -> {
+              throw errorHandler.handleHotelBedsError(e);
             });
-            //.onErrorResume(throwable -> Mono.empty());
   }
 
 
@@ -119,7 +124,9 @@ public class HotelClient {
             .doOnSuccess(response -> log.info("Detalles de reserva obtenidos exitosamente"))
             .doOnError(error -> log.error("Error al obtener detalles de reserva: {}",
                             error.getMessage()))
-            .onErrorResume(WebClientResponseException.class, this::apply);
+            .onErrorResume(WebClientResponseException.class, e -> {
+              throw errorHandler.handleHotelBedsError(e);
+            });
   }
 
   /**

@@ -16,24 +16,23 @@ import masera.deviajebookingsandpayments.dtos.bookings.hotels.PaxDto;
 import masera.deviajebookingsandpayments.dtos.bookings.hotels.RoomDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
-import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
-import masera.deviajebookingsandpayments.dtos.responses.HotelBookingResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.HotelBookingDetailsDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.HotelBooking;
 import masera.deviajebookingsandpayments.entities.Payment;
-import masera.deviajebookingsandpayments.exceptions.HotelBookingException;
+import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.HotelBookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import org.modelmapper.ModelMapper;
-import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Implementación del servicio de reservas de hoteles.
@@ -44,121 +43,89 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 public class HotelBookingServiceImpl implements HotelBookingService {
 
   private final HotelClient hotelClient;
+
   private final PaymentService paymentService;
+
   private final BookingRepository bookingRepository;
+
   private final HotelBookingRepository hotelBookingRepository;
+
   private final PaymentRepository paymentRepository;
+
   private final ModelMapper modelMapper;
 
   @Override
   @Transactional
-  public BaseResponse<String> bookAndPay(CreateHotelBookingRequestDto bookingRequest,
+  public String bookAndPay(CreateHotelBookingRequestDto bookingRequest,
                                  PaymentRequestDto paymentRequest,
                                  PricesDto prices) {
 
     log.info("Iniciando proceso de reserva y pago para hotel. Cliente: {}",
             bookingRequest.getClientId());
 
-    try {
+    // 1. Crear reserva en HotelBeds (lanza HotelBedsApiException si falla)
+    Map<String, Object> hotelBedsRequest = prepareHotelBedsBookingRequest(bookingRequest);
+    Object hotelBedsResponse = hotelClient.createBooking(hotelBedsRequest).block();
 
-      // 1. Crear reserva en HotelBeds
-      Map<String, Object> hotelBedsRequest = prepareHotelBedsBookingRequest(bookingRequest);
-      Object hotelBedsResponse = callHotelBedsCreateBooking(hotelBedsRequest);
+    // 2. Extraer datos de la respuesta de HotelBeds
+    String externalId = extractExternalId(hotelBedsResponse);
+    Map<String, Object> hotelDetails = extractHotelDetails(hotelBedsResponse);
 
-      // 2. Extraer datos de la respuesta de HotelBeds
-      String externalId = extractExternalId(hotelBedsResponse);
-      Map<String, Object> hotelDetails = extractHotelDetails(hotelBedsResponse);
+    // 3. Guardar en nuestra base de datos
+    log.info("Guardando reserva en base de datos");
+    Booking savedBooking = saveBookingInDatabase(bookingRequest,
+            prices, externalId, hotelDetails);
 
-      // 3. Guardar en nuestra base de datos
-      log.info("Guardando reserva en base de datos");
-      Booking savedBooking = saveBookingInDatabase(bookingRequest,
-              prices, externalId, hotelDetails);
+    // 4. Procesar pago PRIMERO
+    log.info("Procesando pago para reserva de hotel");
+    PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
 
-      // 4. Procesar pago PRIMERO
-      log.info("Procesando pago para reserva de hotel");
-      PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
-
-      if (!"APPROVED".equals(paymentResult.getStatus())) {
-        log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-
-        return BaseResponse.error(paymentResult.getErrorMessage());
-      }
+    if (!"APPROVED".equals(paymentResult.getStatus())) {
+      log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
+      // Lanzar excepción que será capturada por GlobalExceptionHandler
+      throw new MercadoPagoException(
+              paymentResult.getErrorMessage() != null
+                      ? paymentResult.getErrorMessage()
+                      : "Pago rechazado por MercadoPago",
+              402  // Payment Required
+      );
+    }
 
       // 5. Actualizar el pago con la reserva
-      updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
-
-      // 6. Convertir a DTOs de respuesta
-      BookingResponseDto bookingResponse = convertToBookingResponse(savedBooking);
-
-      log.info("Reserva de hotel completada exitosamente. ID: {}", savedBooking.getId());
-      return BaseResponse.success(bookingResponse.getBookingReference(), "Reserva de la habitación exitosa");
-
-    } catch (HotelBookingException e) {
-      return BaseResponse.error(e.getMessage());
-    } catch (DataAccessException e) {
-      return BaseResponse.error("No pudimos guardar tu reserva. Intenta nuevamente.");
-    } catch (Exception e) {
-      log.error("Error inesperado en reserva de hotel", e);
-      return BaseResponse.error("Error interno del servidor. "
-              + "Por favor, intenta más tarde o contacta a soporte.");
-    }
+    updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
+    return  savedBooking.getBookingReference();
   }
 
   @Override
-  public HotelBookingResponseDto getBasicBookingInfo(Long bookingId) {
-    log.info("Obteniendo información básica de reserva de hotel: {}", bookingId);
-
-    Optional<HotelBooking> hotelBooking = hotelBookingRepository.findById(bookingId);
-
-    if (hotelBooking.isEmpty()) {
-      throw new RuntimeException("Reserva de hotel no encontrada: " + bookingId);
-    }
-
-    return convertToHotelBookingResponse(hotelBooking.get());
+  public HotelBookingDetailsDto getBasicBookingInfo(Long bookingId) {
+    return hotelBookingRepository.findById(bookingId)
+            .map(this::convertToHotelBookingResponse)
+            .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Reserva de hotel no encontrada con ID: " + bookingId
+            ));
   }
+
 
   @Override
   public Object getFullBookingDetails(Long bookingId) {
     log.info("Obteniendo detalles completos de reserva: {}", bookingId);
-
-    // 1. Obtener externalId de nuestra BD
-    Optional<HotelBooking> hotelBooking = hotelBookingRepository.findById(bookingId);
-
-    if (hotelBooking.isEmpty()) {
-      throw new RuntimeException("Reserva no encontrada: " + bookingId);
-    }
-
-    String externalId = hotelBooking.get().getExternalId();
-
-    if (externalId == null) {
-      throw new RuntimeException("ExternalId no disponible para la reserva: " + bookingId);
-    }
-
-    try {
-      // 2. Llamar a HotelBeds API para obtener detalles completos
-      return hotelClient.getBookingDetails(externalId).block();
-    } catch (Exception e) {
-      log.error("Error al obtener detalles de HotelBeds: {}", externalId, e);
-      throw new RuntimeException("No se pudieron obtener los detalles de la reserva");
-    }
+    HotelBookingDetailsDto hotelBooking = getBasicBookingInfo(bookingId);
+    return hotelClient.getBookingDetails(hotelBooking.getExternalId()).block();
   }
 
   @Override
   public Object checkRates(String rateKey) {
     log.info("Verificando disponibilidad de tarifa: {}", rateKey);
-
-    try {
       return hotelClient.checkRates(rateKey).block();
-    } catch (Exception e) {
-      log.error("Error al verificar tarifa: {}", rateKey, e);
-      throw new RuntimeException("No se pudo verificar la disponibilidad de la tarifa");
-    }
   }
 
   // MÉTODOS DE UTILIDAD
 
   /**
-   * Prepara la solicitud de reserva para HotelBeds.
+   * Prepara la solicitud de creación de una reserva
+   * @param request representa la solicitud
+   * @return la solicitud
    */
   @Override
   public Map<String, Object> prepareHotelBedsBookingRequest(CreateHotelBookingRequestDto request) {
@@ -188,31 +155,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
    * Llama a HotelBeds para crear la reserva con manejo de errores específico
    */
   @Override
-  public Object callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest) throws HotelBookingException {
-    try {
-      log.info("Creando reserva en HotelBeds");
-      Object hotelBedsResponse = hotelClient.createBooking(hotelBedsRequest).block();
-
-      if (hotelBedsResponse == null) {
-        log.error("HotelBeds devolvió respuesta vacía");
-        throw new HotelBookingException("La habitación ya no está disponible. Realiza una nueva búsqueda.");
-      }
-
-      return hotelBedsResponse;
-
-    } catch (WebClientResponseException e) {
-      log.error("Error de HotelBeds: Status={}, Body={}", e.getStatusCode(), e.getResponseBodyAsString());
-
-      if (e.getStatusCode().value() == 400) {
-        throw new HotelBookingException("La habitación seleccionada ya no está disponible. Busca otra opción.");
-      } else {
-        throw new HotelBookingException("El servicio de hoteles está temporalmente no disponible. Intenta en unos minutos.");
-      }
-
-    } catch (Exception e) {
-      log.error("Error general conectando con HotelBeds", e);
-      throw new HotelBookingException("Error conectando con el servicio de hoteles. Intenta más tarde.");
-    }
+  public Object callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest) {
+      return hotelClient.createBooking(hotelBedsRequest).block();
   }
 
   @Override
@@ -455,9 +399,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   }
 
   @Override
-  public HotelBookingResponseDto convertToHotelBookingResponse(HotelBooking hotelBooking) {
-    HotelBookingResponseDto dto = modelMapper.map(hotelBooking, HotelBookingResponseDto.class);
-    return dto;
+  public HotelBookingDetailsDto convertToHotelBookingResponse(HotelBooking hotelBooking) {
+    return modelMapper.map(hotelBooking, HotelBookingDetailsDto.class);
   }
 
   @Override

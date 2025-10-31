@@ -14,27 +14,6 @@ public class AmadeusApiException extends  RuntimeException {
    * Constructor de la clase.
    *
    * @param message Mensaje de error.
-   */
-  public AmadeusApiException(String message) {
-    super(message);
-    this.statusCode = 500; // Por defecto
-  }
-
-  /**
-   * Constructor de la clase.
-   *
-   * @param message Mensaje de error.
-   * @param cause Causa de la excepción.
-   */
-  public AmadeusApiException(String message, Throwable cause) {
-    super(message, cause);
-    this.statusCode = 500; // Por defecto
-  }
-
-  /**
-   * Constructor de la clase.
-   *
-   * @param message Mensaje de error.
    * @param statusCode Código de estado HTTP.
    */
   public AmadeusApiException(String message, int statusCode) {

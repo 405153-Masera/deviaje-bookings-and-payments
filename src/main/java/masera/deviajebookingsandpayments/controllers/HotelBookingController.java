@@ -1,12 +1,10 @@
 package masera.deviajebookingsandpayments.controllers;
 
 import jakarta.validation.Valid;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.bookings.hotels.BookHotelAndPayRequest;
-import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
-import masera.deviajebookingsandpayments.dtos.responses.HotelBookingResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.HotelBookingDetailsDto;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,18 +33,18 @@ public class HotelBookingController {
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
-  public ResponseEntity<BaseResponse<String>> bookHotelAndPay(
+  public ResponseEntity<String> bookHotelAndPay(
           @Valid @RequestBody BookHotelAndPayRequest request) {
 
     log.info("Iniciando reserva y pago de hotel para cliente: {}",
             request.getBookingRequest().getClientId());
 
-    BaseResponse<String> response = hotelBookingService.bookAndPay(
+    String response = hotelBookingService.bookAndPay(
             request.getBookingRequest(),
             request.getPaymentRequest(),
             request.getPrices());
 
-      return ResponseEntity.ok(response);
+    return ResponseEntity.ok(response);
 
   }
 
@@ -58,17 +56,10 @@ public class HotelBookingController {
    *
    */
   @GetMapping("/bookings/{id}")
-  public ResponseEntity<HotelBookingResponseDto> getHotelBooking(@PathVariable Long id) {
-
+  public ResponseEntity<HotelBookingDetailsDto> getHotelBooking(@PathVariable Long id) {
     log.info("Obteniendo reserva de hotel básica: {}", id);
-
-    try {
-      HotelBookingResponseDto booking = hotelBookingService.getBasicBookingInfo(id);
-      return ResponseEntity.ok(booking);
-    } catch (Exception e) {
-      log.error("Error al obtener reserva de hotel: {}", id, e);
-      return ResponseEntity.notFound().build();
-    }
+    HotelBookingDetailsDto booking = hotelBookingService.getBasicBookingInfo(id);
+    return ResponseEntity.ok(booking);
   }
 
   /**
@@ -79,16 +70,9 @@ public class HotelBookingController {
    */
   @GetMapping("/bookings/{id}/details")
   public ResponseEntity<Object> getHotelBookingDetails(@PathVariable Long id) {
-
     log.info("Obteniendo detalles completos de reserva de hotel: {}", id);
-
-    try {
-      Object fullDetails = hotelBookingService.getFullBookingDetails(id);
-      return ResponseEntity.ok(fullDetails);
-    } catch (Exception e) {
-      log.error("Error al obtener detalles de reserva de hotel: {}", id, e);
-      return ResponseEntity.notFound().build();
-    }
+    Object fullDetails = hotelBookingService.getFullBookingDetails(id);
+    return ResponseEntity.ok(fullDetails);
   }
 
   /**
@@ -100,17 +84,8 @@ public class HotelBookingController {
    */
   @GetMapping("/checkrates")
   public ResponseEntity<Object> checkRates(@RequestParam String rateKey) {
-
     log.info("Verificando tarifa de hotel: {}", rateKey);
-
-    try {
-      Object rateInfo = hotelBookingService.checkRates(rateKey);
-      return ResponseEntity.ok(rateInfo);
-    } catch (Exception e) {
-      log.error("Error al verificar tarifa: {}", rateKey, e);
-      return ResponseEntity.badRequest().body(
-              Map.of("error", "Tarifa no disponible", "message", e.getMessage())
-      );
-    }
+    Object rateInfo = hotelBookingService.checkRates(rateKey);
+    return ResponseEntity.ok(rateInfo);
   }
 }

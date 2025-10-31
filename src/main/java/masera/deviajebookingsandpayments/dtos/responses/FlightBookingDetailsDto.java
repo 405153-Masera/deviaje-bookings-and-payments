@@ -4,32 +4,32 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * DTO de respuesta para reservas de vuelo.
+ * DTO para detalles de reservas de vuelo.
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class FlightBookingResponseDto {
-
+public class FlightBookingDetailsDto {
   private Long id;
-  private Long bookingId;
-  private String externalId; // ID de Amadeus
+  private String externalId;
   private String origin;
   private String destination;
-  private LocalDateTime departureDate;
-  private LocalDateTime returnDate;
+  private String departureDate;
+  private String returnDate;
   private String carrier;
-  private String carrierName;
-  private BigDecimal basePrice;
-  private BigDecimal taxes;
-  private BigDecimal discounts;
+  private Integer adults;
+  private Integer children;
+  private Integer infants;
+  private String itineraries;
   private BigDecimal totalPrice;
+  private BigDecimal taxes;
   private String currency;
-  private String status;
+  private String cancellationFrom;
+  private BigDecimal cancellationAmount;
+  private LocalDateTime createdDatetime;
 }

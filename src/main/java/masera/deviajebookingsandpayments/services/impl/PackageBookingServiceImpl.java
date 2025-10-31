@@ -1,6 +1,5 @@
 package masera.deviajebookingsandpayments.services.impl;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -10,18 +9,15 @@ import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.bookings.CreatePackageBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
-import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
-import masera.deviajebookingsandpayments.exceptions.FlightBookingException;
-import masera.deviajebookingsandpayments.exceptions.HotelBookingException;
+import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.services.interfaces.FlightBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PackageBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
-import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,62 +32,53 @@ import org.springframework.web.server.ResponseStatusException;
 public class PackageBookingServiceImpl implements PackageBookingService {
 
   private final BookingRepository bookingRepository;
+
   private final PaymentService paymentService;
+
   private final FlightBookingService flightBookingService;
+
   private final HotelBookingService hotelBookingService;
 
   @Override
   @Transactional
-  public BaseResponse<String> bookAndPay(CreatePackageBookingRequestDto bookingRequest,
+  public String bookAndPay(CreatePackageBookingRequestDto bookingRequest,
                                  PaymentRequestDto paymentRequest, PricesDto prices) {
 
     log.info("Iniciando proceso de reserva y pago para paquete. Cliente: {}",
             bookingRequest.getClientId());
 
-    try {
-
       // 1. CREAR RESERVA PRINCIPAL DEL PAQUETE
-      log.info("Creando reserva principal de paquete");
-      Booking packageBooking = createPackageBooking(bookingRequest, prices);
+    log.info("Creando reserva principal de paquete");
+    Booking packageBooking = createPackageBooking(bookingRequest, prices);
 
       // 2. CREAR RESERVA DE VUELO
-      log.info("Creando reserva de vuelo para paquete");
-      createFlightReservation(bookingRequest, packageBooking, prices);
+    log.info("Creando reserva de vuelo para paquete");
+    createFlightReservation(bookingRequest, packageBooking, prices);
 
+    // 3. CREAR RESERVA DE HOTEL
+    log.info("Creando reserva de hotel para paquete");
+    createHotelReservation(bookingRequest, packageBooking, prices);
 
-      // 3. CREAR RESERVA DE HOTEL
-      log.info("Creando reserva de hotel para paquete");
-      createHotelReservation(bookingRequest, packageBooking, prices);
+    // 4. PROCESAR PAGO
+    log.info("Procesando pago para reserva de paquete");
+    PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
 
-
-      // 4. PROCESAR PAGO
-      log.info("Procesando pago para reserva de paquete");
-      PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
-
-      if (!"APPROVED".equals(paymentResult.getStatus())) {
-        log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-
-        return BaseResponse.error(paymentResult.getErrorMessage());
-      }
-
-      // 5. ASOCIAR PAGO CON LA RESERVA
-      flightBookingService.updatePaymentWithBookingId(paymentResult.getId(), packageBooking.getId());
-
-      // 6. CONVERTIR A DTO DE RESPUESTA
-      BookingResponseDto bookingResponse = flightBookingService.convertToBookingResponse(packageBooking);
-
-      log.info("Reserva de paquete completada exitosamente. ID: {}", packageBooking.getId());
-      return BaseResponse.success(bookingResponse.getBookingReference(), "Reserva del paquete exitosa");
-
-    } catch (FlightBookingException | HotelBookingException e) {
-      return BaseResponse.error(e.getMessage());
-    } catch ( DataAccessException e) {
-      return BaseResponse.error("No pudimos guardar tu reserva. Intenta nuevamente.");
-    } catch (Exception e) {
-      log.error("Error inesperado en reserva de vuelo", e);
-      return BaseResponse.error("Error interno del servidor. "
-              + "Por favor, intenta más tarde o contacta a soporte.");
+    if (!"APPROVED".equals(paymentResult.getStatus())) {
+      log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
+      // Lanzar excepción que será capturada por GlobalExceptionHandler
+      throw new MercadoPagoException(
+              paymentResult.getErrorMessage() != null
+                      ? paymentResult.getErrorMessage()
+                      : "Pago rechazado por MercadoPago",
+              402  // Payment Required
+      );
     }
+
+    // 5. ASOCIAR PAGO CON LA RESERVA
+    flightBookingService.updatePaymentWithBookingId(paymentResult.getId(), packageBooking.getId());
+
+    log.info("Reserva de paquete completada exitosamente. ID: {}", packageBooking.getId());
+    return packageBooking.getBookingReference();
   }
 
   @Override

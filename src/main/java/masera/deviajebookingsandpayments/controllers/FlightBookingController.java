@@ -1,12 +1,10 @@
 package masera.deviajebookingsandpayments.controllers;
 
 import jakarta.validation.Valid;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.BookFlightAndPayRequest;
-import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
-import masera.deviajebookingsandpayments.dtos.responses.FlightBookingResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.FlightBookingDetailsDto;
 import masera.deviajebookingsandpayments.services.interfaces.FlightBookingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,10 +32,10 @@ public class FlightBookingController {
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
-  public ResponseEntity<BaseResponse<String>> bookFlightAndPay(
+  public ResponseEntity<String> bookFlightAndPay(
           @Valid @RequestBody BookFlightAndPayRequest request) {
 
-    BaseResponse<String> response = flightBookingService.bookAndPay(request.getBookingRequest(),
+    String response = flightBookingService.bookAndPay(request.getBookingRequest(),
               request.getPaymentRequest(), request.getPrices());
 
     return ResponseEntity.ok(response);
@@ -50,17 +48,10 @@ public class FlightBookingController {
    * @return datos básicos del vuelo reservado
    */
   @GetMapping("/bookings/{id}")
-  public ResponseEntity<FlightBookingResponseDto> getFlightBooking(@PathVariable Long id) {
-
+  public ResponseEntity<FlightBookingDetailsDto> getFlightBooking(@PathVariable Long id) {
     log.info("Obteniendo reserva de vuelo básica: {}", id);
-
-    try {
-      FlightBookingResponseDto booking = flightBookingService.getBasicBookingInfo(id);
-      return ResponseEntity.ok(booking);
-    } catch (Exception e) {
-      log.error("Error al obtener reserva de vuelo: {}", id, e);
-      return ResponseEntity.notFound().build();
-    }
+    FlightBookingDetailsDto booking = flightBookingService.getBasicBookingInfo(id);
+    return ResponseEntity.ok(booking);
   }
 
   /**
@@ -71,17 +62,8 @@ public class FlightBookingController {
    */
   @PostMapping("/verify-price")
   public ResponseEntity<Object> verifyPrice(@RequestBody Object flightOfferData) {
-
     log.info("Verificando precio de oferta de vuelo");
-
-    try {
-      Object verifiedOffer = flightBookingService.verifyFlightOfferPrice(flightOfferData);
-      return ResponseEntity.ok(verifiedOffer);
-    } catch (Exception e) {
-      log.error("Error al verificar precio: {}", e.getMessage());
-      return ResponseEntity.badRequest().body(
-              Map.of("error", "Oferta no disponible", "message", e.getMessage())
-      );
-    }
+    Object verifiedOffer = flightBookingService.verifyFlightOfferPrice(flightOfferData);
+    return ResponseEntity.ok(verifiedOffer);
   }
 }

@@ -33,4 +33,6 @@ public class ErrorApi {
    * Descripción del código de error.
    */
   private String message;
+
+  private String source;
 }

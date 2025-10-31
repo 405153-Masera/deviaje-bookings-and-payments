@@ -3,12 +3,10 @@ package masera.deviajebookingsandpayments.services.interfaces;
 import masera.deviajebookingsandpayments.dtos.bookings.hotels.CreateHotelBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
-import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
-import masera.deviajebookingsandpayments.dtos.responses.HotelBookingResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.HotelBookingDetailsDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.HotelBooking;
-import masera.deviajebookingsandpayments.exceptions.HotelBookingException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +26,7 @@ public interface HotelBookingService {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con resultado de la operación
    */
-  BaseResponse<String> bookAndPay(CreateHotelBookingRequestDto bookingRequest,
+  String bookAndPay(CreateHotelBookingRequestDto bookingRequest,
                           PaymentRequestDto paymentRequest, PricesDto prices);
 
   /**
@@ -37,7 +35,7 @@ public interface HotelBookingService {
    * @param bookingId ID de la reserva
    * @return datos básicos de la reserva
    */
-  HotelBookingResponseDto getBasicBookingInfo(Long bookingId);
+  HotelBookingDetailsDto getBasicBookingInfo(Long bookingId);
 
   /**
    * Obtiene detalles completos de una reserva desde HotelBeds API.
@@ -57,7 +55,7 @@ public interface HotelBookingService {
 
   Map<String, Object> prepareHotelBedsBookingRequest(CreateHotelBookingRequestDto request);
 
-  Object callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest) throws HotelBookingException;
+  Object callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest);
 
   String generateBookingReference(Long bookingId, Booking.BookingType type);
 
@@ -91,7 +89,7 @@ public interface HotelBookingService {
 
   Integer countChildren(CreateHotelBookingRequestDto request);
 
-  HotelBookingResponseDto convertToHotelBookingResponse(HotelBooking hotelBooking);
+  HotelBookingDetailsDto convertToHotelBookingResponse(HotelBooking hotelBooking);
 
   BookingResponseDto convertToBookingResponse(Booking booking);
 }

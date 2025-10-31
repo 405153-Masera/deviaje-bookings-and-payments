@@ -5,7 +5,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.bookings.BookPackageAndPayRequest;
-import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.PackageBookingService;
 import org.springframework.http.ResponseEntity;
@@ -34,10 +33,10 @@ public class PackageBookingController {
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
-  public ResponseEntity<BaseResponse<String>> bookPackageAndPay(
+  public ResponseEntity<String> bookPackageAndPay(
           @Valid @RequestBody BookPackageAndPayRequest request) {
 
-    BaseResponse<String> response = packageBookingService.bookAndPay(
+    String response = packageBookingService.bookAndPay(
               request.getPackageBookingRequest(),
               request.getPaymentRequest(),
               request.getPrices()
@@ -54,16 +53,9 @@ public class PackageBookingController {
   @GetMapping("/client/{clientId}")
   public ResponseEntity<List<BookingResponseDto>> getClientPackageBookings(
           @PathVariable Integer clientId) {
-
     log.info("Obteniendo reservas de paquetes para el cliente: {}", clientId);
-
-    try {
-      List<BookingResponseDto> bookings = packageBookingService.getClientPackageBookings(clientId);
-      return ResponseEntity.ok(bookings);
-    } catch (Exception e) {
-      log.error("Error al obtener reservas de paquetes del cliente: {}", clientId, e);
-      return ResponseEntity.internalServerError().build();
-    }
+    List<BookingResponseDto> bookings = packageBookingService.getClientPackageBookings(clientId);
+    return ResponseEntity.ok(bookings);
   }
 
   /**
@@ -75,13 +67,7 @@ public class PackageBookingController {
   @GetMapping("/{id}")
   public ResponseEntity<BookingResponseDto> getPackageBooking(@PathVariable Long id) {
     log.info("Obteniendo detalles de reserva de paquete: {}", id);
-
-    try {
-      BookingResponseDto booking = packageBookingService.getPackageBookingDetails(id);
-      return ResponseEntity.ok(booking);
-    } catch (Exception e) {
-      log.error("Error al obtener detalles de reserva de paquete: {}", id, e);
-      return ResponseEntity.notFound().build();
-    }
+    BookingResponseDto booking = packageBookingService.getPackageBookingDetails(id);
+    return ResponseEntity.ok(booking);
   }
 }

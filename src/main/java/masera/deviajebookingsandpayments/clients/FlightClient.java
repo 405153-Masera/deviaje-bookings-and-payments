@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.configs.AmadeusConfig;
 import masera.deviajebookingsandpayments.services.interfaces.AmadeusTokenService;
-import masera.deviajebookingsandpayments.utils.AmadeusErrorHandler;
+import masera.deviajebookingsandpayments.utils.ErrorHandler;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -22,7 +22,7 @@ public class FlightClient {
 
   private final WebClient webClient;
 
-  private final AmadeusErrorHandler errorHandler;
+  private final ErrorHandler errorHandler;
 
   private final AmadeusConfig amadeusConfig;
 
@@ -101,8 +101,10 @@ public class FlightClient {
               } else {
                 log.error("Error al crear reserva de vuelo: {}", error.getMessage());
               }
+            })
+            .onErrorResume(WebClientResponseException.class, e -> {
+              throw errorHandler.handleAmadeusError(e);
             });
-            //.onErrorResume(throwable -> Mono.empty());
   }
 
   /**

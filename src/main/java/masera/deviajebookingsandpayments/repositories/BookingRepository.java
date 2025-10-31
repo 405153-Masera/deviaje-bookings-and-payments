@@ -2,6 +2,8 @@ package masera.deviajebookingsandpayments.repositories;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+
 import masera.deviajebookingsandpayments.entities.Booking;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -46,6 +48,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
    * @return Lista de reservas con el estado especificado
    */
   List<Booking> findByStatus(Booking.BookingStatus status);
+
+  /**
+   * Encuentra una reserva por su booking reference.
+   *
+   * @param bookingReference Referencia de la reserva
+   * @return Reserva opcional
+   */
+  Optional<Booking> findByBookingReference(String bookingReference);
 
   /**
    * Encuentra reservas por rango de fechas.

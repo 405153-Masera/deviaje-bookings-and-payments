@@ -4,12 +4,10 @@ import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBooki
 import masera.deviajebookingsandpayments.dtos.bookings.flights.FlightOfferDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
-import masera.deviajebookingsandpayments.dtos.responses.BaseResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
-import masera.deviajebookingsandpayments.dtos.responses.FlightBookingResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.FlightBookingDetailsDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.FlightBooking;
-import masera.deviajebookingsandpayments.exceptions.FlightBookingException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -25,7 +23,7 @@ public interface FlightBookingService {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con resultado de la operación
    */
-  BaseResponse<String> bookAndPay(CreateFlightBookingRequestDto bookingRequest,
+  String bookAndPay(CreateFlightBookingRequestDto bookingRequest,
                           PaymentRequestDto paymentRequest, PricesDto prices);
 
   /**
@@ -34,7 +32,7 @@ public interface FlightBookingService {
    * @param bookingId ID de la reserva
    * @return datos básicos de la reserva
    */
-  FlightBookingResponseDto getBasicBookingInfo(Long bookingId);
+  FlightBookingDetailsDto getBasicBookingInfo(Long bookingId);
 
 
   /**
@@ -83,7 +81,7 @@ public interface FlightBookingService {
                                 PricesDto prices,
                                 String externalId);
 
-  Object callAmadeusCreateOrder(Object amadeusBookingData) throws FlightBookingException;
+  Object callAmadeusCreateOrder(Object amadeusBookingData);
 
   String generateBookingReference(Long bookingId, Booking.BookingType type);
 
@@ -149,7 +147,7 @@ public interface FlightBookingService {
    * @param flightBooking entidad de reserva de vuelo
    * @return DTO de respuesta
    */
-  FlightBookingResponseDto convertToFlightBookingResponse(FlightBooking flightBooking);
+  FlightBookingDetailsDto convertToFlightBookingResponse(FlightBooking flightBooking);
 
   /**
    * Convierte Booking a BookingResponseDto.

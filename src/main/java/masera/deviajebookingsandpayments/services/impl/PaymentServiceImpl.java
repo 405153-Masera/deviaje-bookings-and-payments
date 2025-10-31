@@ -1,18 +1,15 @@
 package masera.deviajebookingsandpayments.services.impl;
 
-
 import com.mercadopago.MercadoPagoConfig;
 import com.mercadopago.client.common.IdentificationRequest;
 import com.mercadopago.client.payment.*;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
+import com.mercadopago.resources.payment.Payment;
 import com.mercadopago.resources.payment.PaymentRefund;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
-
-import com.mercadopago.resources.payment.PaymentTransactionDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.configs.PagoConfig;
@@ -34,6 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class PaymentServiceImpl implements PaymentService {
 
   private final PaymentRepository paymentRepository;
+
   private final PagoConfig pagoConfig;
 
   /**
@@ -120,7 +118,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     // Procesar el pago
     try {
-      com.mercadopago.resources.payment.Payment createdPayment =
+      Payment createdPayment =
               paymentClient.create(paymentCreateRequest);
 
       // Log de respuesta exitosa
