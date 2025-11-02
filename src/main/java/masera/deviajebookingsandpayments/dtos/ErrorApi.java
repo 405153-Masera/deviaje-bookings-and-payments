@@ -25,6 +25,11 @@ public class ErrorApi {
   private Integer status;
 
   /**
+   * Código específico de las apis externas.
+   */
+  private String codeErrorApi;
+
+  /**
    * Nombre del código de error.
    */
   private String error;

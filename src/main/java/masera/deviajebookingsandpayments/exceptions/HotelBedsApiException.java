@@ -10,6 +10,7 @@ import lombok.Getter;
 public class HotelBedsApiException extends RuntimeException {
 
   private final int statusCode;
+  private String internalCode;
 
   /**
    * Constructor de la excepción.
@@ -20,6 +21,19 @@ public class HotelBedsApiException extends RuntimeException {
   public HotelBedsApiException(String message, int statusCode) {
     super(message);
     this.statusCode = statusCode;
+  }
+
+  /**
+   * Constructor de la clase.
+   *
+   * @param message Mensaje de error.
+   * @param statusCode Código de estado HTTP.
+   * @param internalCode Código interno de hotelbeds
+   */
+  public HotelBedsApiException(String message, int statusCode,  String internalCode) {
+    super(message);
+    this.statusCode = statusCode;
+    this.internalCode = internalCode;
   }
 
   /**
