@@ -22,7 +22,6 @@ import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.HotelBooking;
 import masera.deviajebookingsandpayments.entities.Payment;
-import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.HotelBookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
@@ -79,17 +78,6 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     // 4. Procesar pago PRIMERO
     log.info("Procesando pago para reserva de hotel");
     PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
-
-    if (!"APPROVED".equals(paymentResult.getStatus())) {
-      log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-      // Lanzar excepción que será capturada por GlobalExceptionHandler
-      throw new MercadoPagoException(
-              paymentResult.getErrorMessage() != null
-                      ? paymentResult.getErrorMessage()
-                      : "Pago rechazado por MercadoPago",
-              402  // Payment Required
-      );
-    }
 
       // 5. Actualizar el pago con la reserva
     updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());

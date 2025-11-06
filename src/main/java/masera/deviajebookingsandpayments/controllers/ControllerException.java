@@ -64,12 +64,19 @@ public class ControllerException {
 
   /**
    * Maneja errores de MercadoPago.
+   *
+   * @param e excepción de MercadoPago
+   * @return ResponseEntity con el error
    */
   @ExceptionHandler(MercadoPagoException.class)
   public ResponseEntity<ErrorApi> handleMercadoPagoException(MercadoPagoException e) {
     log.error("Error en MercadoPago: {} - Status: {}", e.getMessage(), e.getStatusCode());
     HttpStatus status = HttpStatus.valueOf(e.getStatusCode());
     ErrorApi error = buildError(e.getMessage(), status, "MERCADO_PAGO");
+
+    if (e.getInternalCode() != null) {
+      error.setCodeErrorApi(e.getInternalCode());
+    }
     return ResponseEntity.status(status).body(error);
   }
 

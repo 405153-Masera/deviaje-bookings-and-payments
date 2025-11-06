@@ -63,17 +63,6 @@ public class PackageBookingServiceImpl implements PackageBookingService {
     log.info("Procesando pago para reserva de paquete");
     PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
 
-    if (!"APPROVED".equals(paymentResult.getStatus())) {
-      log.warn("Pago rechazado: {}", paymentResult.getErrorMessage());
-      // Lanzar excepción que será capturada por GlobalExceptionHandler
-      throw new MercadoPagoException(
-              paymentResult.getErrorMessage() != null
-                      ? paymentResult.getErrorMessage()
-                      : "Pago rechazado por MercadoPago",
-              402  // Payment Required
-      );
-    }
-
     // 5. ASOCIAR PAGO CON LA RESERVA
     flightBookingService.updatePaymentWithBookingId(paymentResult.getId(), packageBooking.getId());
 

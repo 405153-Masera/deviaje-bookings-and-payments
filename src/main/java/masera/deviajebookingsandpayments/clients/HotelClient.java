@@ -41,15 +41,12 @@ public class HotelClient {
   public Mono<Object> checkRates(String rateKey) {
     log.info("Verificando tarifa con clave: {}", rateKey);
 
-    // Crear el cuerpo de la solicitud
     Map<String, Object> request = new java.util.HashMap<>();
     java.util.List<Map<String, String>> rooms = new java.util.ArrayList<>();
 
-    // Crear un objeto para cada rateKey
     Map<String, String> room = new java.util.HashMap<>();
     room.put("rateKey", rateKey);
     rooms.add(room);
-
     request.put("rooms", rooms);
 
     return webClient

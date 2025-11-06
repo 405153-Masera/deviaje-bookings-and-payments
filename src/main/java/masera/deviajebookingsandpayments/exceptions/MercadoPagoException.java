@@ -10,6 +10,7 @@ import lombok.Getter;
 public class MercadoPagoException extends RuntimeException {
 
   private final int statusCode;
+  private String internalCode;
 
   /**
    * Constructor de la excepción.
@@ -20,6 +21,19 @@ public class MercadoPagoException extends RuntimeException {
   public MercadoPagoException(String message, int statusCode) {
     super(message);
     this.statusCode = statusCode;
+  }
+
+  /**
+   * Constructor con código interno de MercadoPago.
+   *
+   * @param message      Mensaje de error
+   * @param statusCode   Código de estado HTTP
+   * @param internalCode Código interno de error de MercadoPago
+   */
+  public MercadoPagoException(String message, int statusCode, String internalCode) {
+    super(message);
+    this.statusCode = statusCode;
+    this.internalCode = internalCode;
   }
 
   /**

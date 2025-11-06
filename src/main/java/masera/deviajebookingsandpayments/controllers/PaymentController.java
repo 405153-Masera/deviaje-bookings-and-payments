@@ -8,19 +8,14 @@ import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
- * Controlador para operaciones de pago directas.
+ * Controlador REST para gestión de pagos.
  */
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/payments")
+@RequiredArgsConstructor
 @Slf4j
 public class PaymentController {
 
@@ -29,37 +24,25 @@ public class PaymentController {
   private final PagoConfig pagoConfig;
 
   /**
-   * Procesa un pago directamente.
+   * Procesa un pago con MercadoPago.
    *
    * @param paymentRequest datos del pago
    * @return resultado del procesamiento
    */
-  @PostMapping("/process/payment")
+  @PostMapping
   public ResponseEntity<PaymentResponseDto> processPayment(
           @Valid @RequestBody PaymentRequestDto paymentRequest) {
 
-    log.info("Procesando pago por {} {}", paymentRequest.getAmount(), paymentRequest.getCurrency());
+    log.info("Recibida solicitud de pago por {} {}",
+            paymentRequest.getAmount(),
+            paymentRequest.getCurrency());
 
-    try {
-      PaymentResponseDto response = paymentService.processPayment(paymentRequest);
-
-      if ("APPROVED".equals(response.getStatus())) {
-        return ResponseEntity.ok(response);
-      } else {
-        return ResponseEntity.badRequest().body(response);
-      }
-    } catch (Exception e) {
-      log.error("Error al procesar pago", e);
-      PaymentResponseDto errorResponse = PaymentResponseDto.rejected(
-              "PROCESSING_ERROR",
-              "Error al procesar el pago: " + e.getMessage()
-      );
-      return ResponseEntity.internalServerError().body(errorResponse);
-    }
+    PaymentResponseDto response = paymentService.processPayment(paymentRequest);
+    return ResponseEntity.ok(response);
   }
 
   /**
-   * Verifica el estado de un pago.
+   * Verifica el estado de un pago por su ID interno.
    *
    * @param paymentId id del pago
    * @return estado actualizado del pago
@@ -68,22 +51,12 @@ public class PaymentController {
   public ResponseEntity<PaymentResponseDto> checkPaymentStatus(@PathVariable Long paymentId) {
     log.info("Verificando estado de pago: {}", paymentId);
 
-    try {
-      PaymentResponseDto response = paymentService.checkPaymentStatus(paymentId);
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
-      log.error("Error al verificar estado de pago", e);
-      PaymentResponseDto errorResponse = PaymentResponseDto.builder()
-              .status("ERROR")
-              .errorCode("CHECK_ERROR")
-              .errorMessage("Error al verificar estado: " + e.getMessage())
-              .build();
-      return ResponseEntity.internalServerError().body(errorResponse);
-    }
+    PaymentResponseDto response = paymentService.checkPaymentStatus(paymentId);
+    return ResponseEntity.ok(response);
   }
 
   /**
-   * Verifica el estado de un pago externo por su ID.
+   * Verifica el estado de un pago externo por su ID de MercadoPago.
    *
    * @param externalPaymentId id externo del pago
    * @return estado actualizado del pago
@@ -94,18 +67,8 @@ public class PaymentController {
 
     log.info("Verificando estado de pago externo: {}", externalPaymentId);
 
-    try {
-      PaymentResponseDto response = paymentService.checkExternalPaymentStatus(externalPaymentId);
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
-      log.error("Error al verificar estado de pago externo", e);
-      PaymentResponseDto errorResponse = PaymentResponseDto.builder()
-              .status("ERROR")
-              .errorCode("CHECK_ERROR")
-              .errorMessage("Error al verificar estado: " + e.getMessage())
-              .build();
-      return ResponseEntity.internalServerError().body(errorResponse);
-    }
+    PaymentResponseDto response = paymentService.checkExternalPaymentStatus(externalPaymentId);
+    return ResponseEntity.ok(response);
   }
 
   /**
@@ -118,22 +81,12 @@ public class PaymentController {
   public ResponseEntity<PaymentResponseDto> refundPayment(@PathVariable Long paymentId) {
     log.info("Procesando reembolso para pago: {}", paymentId);
 
-    try {
-      PaymentResponseDto response = paymentService.refundPayment(paymentId);
+    PaymentResponseDto response = paymentService.refundPayment(paymentId);
 
-      if ("REFUNDED".equals(response.getStatus())) {
-        return ResponseEntity.ok(response);
-      } else {
-        return ResponseEntity.badRequest().body(response);
-      }
-    } catch (Exception e) {
-      log.error("Error al procesar reembolso", e);
-      PaymentResponseDto errorResponse = PaymentResponseDto.builder()
-              .status("ERROR")
-              .errorCode("REFUND_ERROR")
-              .errorMessage("Error al procesar reembolso: " + e.getMessage())
-              .build();
-      return ResponseEntity.internalServerError().body(errorResponse);
+    if ("REFUNDED".equals(response.getStatus())) {
+      return ResponseEntity.ok(response);
+    } else {
+      return ResponseEntity.badRequest().body(response);
     }
   }
 

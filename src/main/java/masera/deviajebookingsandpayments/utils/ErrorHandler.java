@@ -3,10 +3,13 @@ package masera.deviajebookingsandpayments.utils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mercadopago.exceptions.MPApiException;
+import com.mercadopago.exceptions.MPException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.exceptions.AmadeusApiException;
 import masera.deviajebookingsandpayments.exceptions.HotelBedsApiException;
+import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.utils.dtos.AmadeusError;
 import masera.deviajebookingsandpayments.utils.dtos.AmadeusErrorResponse;
 import org.springframework.stereotype.Component;
@@ -108,6 +111,160 @@ public class ErrorHandler {
       log.error("Error inesperado al procesar error de HotelBeds", ex);
       return createGenericException(statusCode, e.getStatusText());
     }
+  }
+
+  /**
+   * Procesa excepciones de MercadoPago (MPApiException y MPException)
+   * y las convierte en MercadoPagoException con los detalles adecuados.
+   *
+   * @param e La excepción original de MercadoPago
+   * @return Una nueva MercadoPagoException con los detalles formateados
+   */
+  public MercadoPagoException handleMercadoPagoError(MPApiException e) {
+
+    log.error("Error de MercadoPago API - Status: {}, Message: {}", e.getStatusCode(), e.getMessage());
+
+    try {
+
+      String errorContent = e.getApiResponse() != null ? e.getApiResponse().getContent() : null;
+
+      if (errorContent != null && !errorContent.trim().isEmpty()) {
+        JsonNode rootNode = objectMapper.readTree(errorContent);
+
+        if (rootNode.has("cause") && rootNode.get("cause").isArray()) {
+          return handleMercadoPagoCauseFormat(rootNode, e.getStatusCode());
+        }
+
+        if (rootNode.has("message") || rootNode.has("code")) {
+          return handleMercadoPagoSimpleFormat(rootNode, e.getStatusCode());
+        }
+      }
+
+      return createMercadoPagoGenericException(e.getMessage(), e.getStatusCode());
+
+    } catch (JsonProcessingException ex) {
+      log.error("Error al parsear respuesta de MercadoPago (no es JSON válido)", ex);
+      return createMercadoPagoGenericException(e.getMessage(), e.getStatusCode());
+    } catch (Exception ex) {
+      log.error("Error inesperado al procesar error de MercadoPago", ex);
+      return createMercadoPagoGenericException(e.getMessage(), e.getStatusCode());
+    }
+  }
+
+  /**
+   * Maneja errores generales de MercadoPago (MPException sin statusCode).
+   *
+   * @param e La excepción MPException
+   * @return MercadoPagoException
+   */
+  public MercadoPagoException handleMercadoPagoError(MPException e) {
+    log.error("Error general de MercadoPago: {}", e.getMessage());
+
+    int statusCode = 500;
+    String message = String.format(
+            "— %d INTERNAL SERVER ERROR - MercadoPago Error: %s",
+            statusCode,
+            e.getMessage() != null ? e.getMessage() : "Error de conexión con MercadoPago"
+    );
+    return new MercadoPagoException(message, statusCode, e);
+  }
+
+  /**
+   * Maneja el formato "cause" de errores de MercadoPago.
+   * Formato: {"cause": [{"code": "INVALID_CARD", "description": "Tarjeta inválida"}]}
+   *
+   * @param rootNode Nodo JSON raíz
+   * @param statusCode Código HTTP
+   * @return MercadoPagoException con el mensaje formateado
+   */
+  private MercadoPagoException handleMercadoPagoCauseFormat(JsonNode rootNode, int statusCode) {
+    JsonNode causeArray = rootNode.get("cause");
+
+    if (causeArray.isArray() && !causeArray.isEmpty()) {
+      JsonNode firstCause = causeArray.get(0);
+
+      String code = firstCause.has("code")
+              ? firstCause.get("code").asText() : "UNKNOWN";
+      String description = firstCause.has("description")
+              ? firstCause.get("description").asText() : "Sin descripción";
+
+      String formattedMessage = String.format(
+              "— %d %s - MercadoPago Error [%s]: %s",
+              statusCode,
+              getHttpStatusText(statusCode),
+              code,
+              description
+      );
+      return new MercadoPagoException(formattedMessage, statusCode, code);
+    }
+
+    return createMercadoPagoGenericException("Error en MercadoPago", statusCode);
+  }
+
+  /**
+   * Maneja el formato simple de errores de MercadoPago.
+   * Formato: {"message": "Invalid token", "error": "bad_request", "status": 400}
+   *
+   * @param rootNode Nodo JSON raíz
+   * @param statusCode Código HTTP
+   * @return MercadoPagoException con el mensaje formateado
+   */
+  private MercadoPagoException handleMercadoPagoSimpleFormat(JsonNode rootNode, int statusCode) {
+    String message = rootNode.has("message")
+            ? rootNode.get("message").asText() : null;
+    String code = rootNode.has("code")
+            ? rootNode.get("code").asText() : null;
+
+    String errorCode = code != null ? code.toUpperCase() : "MERCADOPAGO_ERROR";
+    String errorMessage = message != null ? message : "Error al procesar con MercadoPago";
+
+    String formattedMessage = String.format(
+            "— %d %s - MercadoPago Error [%s]: %s",
+            statusCode,
+            getHttpStatusText(statusCode),
+            errorCode,
+            errorMessage
+    );
+
+    return new MercadoPagoException(formattedMessage, statusCode, errorCode);
+  }
+
+  /**
+   * Crea una excepción genérica de MercadoPago.
+   *
+   * @param message Mensaje de error
+   * @param statusCode Código HTTP
+   * @return MercadoPagoException genérica
+   */
+  private MercadoPagoException createMercadoPagoGenericException(String message, int statusCode) {
+    String formattedMessage = String.format(
+            "— %d %s - Error al procesar pago con MercadoPago: %s",
+            statusCode,
+            getHttpStatusText(statusCode),
+            message != null ? message : "Error desconocido"
+    );
+
+    return new MercadoPagoException(formattedMessage, statusCode);
+  }
+
+  /**
+   * Obtiene el texto del status HTTP.
+   *
+   * @param statusCode Código HTTP
+   * @return Texto del status
+   */
+  private String getHttpStatusText(int statusCode) {
+    return switch (statusCode) {
+      case 400 -> "BAD REQUEST";
+      case 401 -> "UNAUTHORIZED";
+      case 402 -> "PAYMENT REQUIRED";
+      case 403 -> "FORBIDDEN";
+      case 404 -> "NOT FOUND";
+      case 422 -> "UNPROCESSABLE ENTITY";
+      case 500 -> "INTERNAL SERVER ERROR";
+      case 503 -> "SERVICE UNAVAILABLE";
+      default -> "ERROR";
+    };
   }
 
   /**
