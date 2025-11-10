@@ -4,6 +4,7 @@ import java.util.List;
 import masera.deviajebookingsandpayments.dtos.bookings.CreatePackageBookingRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
+import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import org.springframework.stereotype.Service;
 
@@ -20,9 +21,9 @@ public interface PackageBookingService {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con resultado de la operación
    */
-  String bookAndPay(CreatePackageBookingRequestDto bookingRequest,
-                          PaymentRequestDto paymentRequest,
-                          PricesDto prices);
+  BookingReferenceResponse bookAndPay(CreatePackageBookingRequestDto bookingRequest,
+                                      PaymentRequestDto paymentRequest,
+                                      PricesDto prices);
 
   /**
    * Obtiene las reservas de paquetes de un cliente.

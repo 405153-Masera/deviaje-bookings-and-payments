@@ -7,17 +7,19 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.bookings.CreatePackageBookingRequestDto;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.HotelBookingResponse;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
+import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
-import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.services.interfaces.FlightBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PackageBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
+import masera.deviajebookingsandpayments.services.interfaces.BookingService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,23 +37,23 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
   private final PaymentService paymentService;
 
+  private final BookingService bookingService;
+
   private final FlightBookingService flightBookingService;
 
   private final HotelBookingService hotelBookingService;
 
   @Override
   @Transactional
-  public String bookAndPay(CreatePackageBookingRequestDto bookingRequest,
-                                 PaymentRequestDto paymentRequest, PricesDto prices) {
+  public BookingReferenceResponse bookAndPay(CreatePackageBookingRequestDto bookingRequest,
+                                             PaymentRequestDto paymentRequest, PricesDto prices) {
 
     log.info("Iniciando proceso de reserva y pago para paquete. Cliente: {}",
             bookingRequest.getClientId());
 
-      // 1. CREAR RESERVA PRINCIPAL DEL PAQUETE
     log.info("Creando reserva principal de paquete");
     Booking packageBooking = createPackageBooking(bookingRequest, prices);
 
-      // 2. CREAR RESERVA DE VUELO
     log.info("Creando reserva de vuelo para paquete");
     createFlightReservation(bookingRequest, packageBooking, prices);
 
@@ -64,10 +66,10 @@ public class PackageBookingServiceImpl implements PackageBookingService {
     PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
 
     // 5. ASOCIAR PAGO CON LA RESERVA
-    flightBookingService.updatePaymentWithBookingId(paymentResult.getId(), packageBooking.getId());
+    bookingService.updatePaymentWithBookingId(paymentResult.getId(), packageBooking.getId());
 
     log.info("Reserva de paquete completada exitosamente. ID: {}", packageBooking.getId());
-    return packageBooking.getBookingReference();
+    return new BookingReferenceResponse(packageBooking.getBookingReference());
   }
 
   @Override
@@ -126,13 +128,13 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
     Booking savedBooking = bookingRepository.save(booking);
 
-    String bookingReference = flightBookingService.generateBookingReference(savedBooking.getId(), savedBooking.getType());
+    String bookingReference = bookingService.generateBookingReference(savedBooking.getId(), savedBooking.getType());
     savedBooking.setBookingReference(bookingReference);
     return bookingRepository.save(savedBooking);
   }
 
   /**
-   * Crea la reserva de vuelo usando las APIs correspondientes.
+   * Crea la reserva de vuelo usando las apis correspondientes.
    */
   private void createFlightReservation(CreatePackageBookingRequestDto request,
                                        Booking packageBooking,
@@ -160,34 +162,25 @@ public class PackageBookingServiceImpl implements PackageBookingService {
   }
 
   /**
-   * Crea la reserva de hotel usando las APIs correspondientes.
+   * Crea la reserva de hotel usando las apis correspondientes.
    */
   private void createHotelReservation(CreatePackageBookingRequestDto request,
                                       Booking packageBooking,
                                       PricesDto prices) {
 
-    // 1. Preparar datos para HotelBeds
-    Object hotelBedsBookingData = hotelBookingService.prepareHotelBedsBookingRequest(
+    Map<String, Object> hotelBedsBookingData = hotelBookingService.prepareHotelBedsBookingRequest(
               request.getHotelBooking());
+    HotelBookingResponse hotelBedsResponse = hotelBookingService
+            .callHotelBedsCreateBooking(hotelBedsBookingData);
 
-    // 2. Crear reserva en HotelBeds (puede lanzar HotelBookingException)
-    Object hotelBedsResponse = hotelBookingService.callHotelBedsCreateBooking((Map<String, Object>) hotelBedsBookingData);
+    hotelBookingService.createHotelBookingEntity(
+            request.getHotelBooking(),
+            packageBooking,
+            hotelBedsResponse.getBooking().getReference(),
+            prices,
+            hotelBedsResponse.getBooking());
 
-    // 3. Extraer external ID y detalles
-    String externalId = hotelBookingService.extractExternalId(hotelBedsResponse);
-
-    // 4. Extraer hotelDetails usando el método público del servicio
-    Map<String, Object> hotelDetails =  hotelBookingService.extractHotelDetails(hotelBedsResponse);
-
-    // 5. Crear entidad HotelBooking asociada al paquete con hotelDetails
-     hotelBookingService.createHotelBookingEntity(
-                      request.getHotelBooking(),
-                      packageBooking,
-                      externalId,
-                      prices,
-                      hotelDetails);
-
-    log.info("Reserva de hotel creada con external ID: {}", externalId);
-
+    log.info("Reserva de hotel creada con external ID: {}",
+            hotelBedsResponse.getBooking().getReference());
   }
 }

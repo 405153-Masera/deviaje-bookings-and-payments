@@ -4,6 +4,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.configs.HotelbedsConfig;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.HotelBookingResponse;
 import masera.deviajebookingsandpayments.utils.ErrorHandler;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.http.HttpHeaders;
@@ -48,6 +49,7 @@ public class HotelClient {
     room.put("rateKey", rateKey);
     rooms.add(room);
     request.put("rooms", rooms);
+    request.put("language", "CAS");
 
     return webClient
             .post()
@@ -77,7 +79,7 @@ public class HotelClient {
    * @param bookingRequest solicitud de reserva
    * @return confirmación de la reserva
    */
-  public Mono<Object> createBooking(Object bookingRequest) {
+  public Mono<HotelBookingResponse> createBooking(Object bookingRequest) {
     log.info("Creando reserva de hotel");
 
     return webClient
@@ -87,7 +89,7 @@ public class HotelClient {
             .headers(this::addHotelbedsHeaders)
             .bodyValue(bookingRequest)
             .retrieve()
-            .bodyToMono(Object.class)
+            .bodyToMono(HotelBookingResponse.class)
             .doOnSuccess(response -> log.info("Reserva creada exitosamente"))
             .doOnError(error -> {
               if (error instanceof WebClientResponseException webError) {

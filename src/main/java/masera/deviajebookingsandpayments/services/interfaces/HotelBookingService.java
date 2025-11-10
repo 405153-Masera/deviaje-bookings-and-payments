@@ -1,17 +1,17 @@
 package masera.deviajebookingsandpayments.services.interfaces;
 
+import java.util.Map;
 import masera.deviajebookingsandpayments.dtos.bookings.hotels.CreateHotelBookingRequestDto;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.HotelBookingApi;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.HotelBookingResponse;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
-import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
+import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingDetailsDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.HotelBooking;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.util.Map;
 
 /**
  * Interfaz para el servicio de reservas de hoteles.
@@ -26,8 +26,8 @@ public interface HotelBookingService {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con resultado de la operación
    */
-  String bookAndPay(CreateHotelBookingRequestDto bookingRequest,
-                          PaymentRequestDto paymentRequest, PricesDto prices);
+  BookingReferenceResponse bookAndPay(CreateHotelBookingRequestDto bookingRequest,
+                                      PaymentRequestDto paymentRequest, PricesDto prices);
 
   /**
    * Obtiene información básica de una reserva de hotel desde la BD.
@@ -55,41 +55,23 @@ public interface HotelBookingService {
 
   Map<String, Object> prepareHotelBedsBookingRequest(CreateHotelBookingRequestDto request);
 
-  Object callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest);
-
-  String generateBookingReference(Long bookingId, Booking.BookingType type);
-
-  void updatePaymentWithBookingId(Long paymentId, Long bookingId);
-
-  String extractExternalId(Object hotelBedsResponse);
-
-  Map<String, Object> extractHotelDetails(Object hotelBedsResponse);
+  HotelBookingResponse callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest);
 
   void createHotelBookingEntity(CreateHotelBookingRequestDto request,
                                 Booking booking,
                                 String externalId,
                                 PricesDto prices,
-                                Map<String, Object> hotelDetails);
+                                HotelBookingApi hotelDetails);
 
   @Transactional
   Booking saveBookingInDatabase(CreateHotelBookingRequestDto request,
                                 PricesDto payment,
                                 String externalId,
-                                Map<String, Object> hotelDetails);
-
-  LocalDate extractCheckInDate(String rateKey);
-
-  LocalDate extractCheckOutDate(String rateKey);
-
-  String extractHotelName(Map<String, Object> hotelDetails);
-
-  String extractDestinationName(Map<String, Object> hotelDetails);
+                                HotelBookingApi hotelDetails);
 
   Integer countAdults(CreateHotelBookingRequestDto request);
 
   Integer countChildren(CreateHotelBookingRequestDto request);
 
   HotelBookingDetailsDto convertToHotelBookingResponse(HotelBooking hotelBooking);
-
-  BookingResponseDto convertToBookingResponse(Booking booking);
 }

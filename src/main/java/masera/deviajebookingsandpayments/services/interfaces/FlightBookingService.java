@@ -4,6 +4,7 @@ import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBooki
 import masera.deviajebookingsandpayments.dtos.bookings.flights.FlightOfferDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
+import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingDetailsDto;
 import masera.deviajebookingsandpayments.entities.Booking;
@@ -23,8 +24,8 @@ public interface FlightBookingService {
    * @param paymentRequest datos del pago
    * @return respuesta unificada con resultado de la operación
    */
-  String bookAndPay(CreateFlightBookingRequestDto bookingRequest,
-                          PaymentRequestDto paymentRequest, PricesDto prices);
+  BookingReferenceResponse bookAndPay(CreateFlightBookingRequestDto bookingRequest,
+                                      PaymentRequestDto paymentRequest, PricesDto prices);
 
   /**
    * Obtiene información básica de una reserva de vuelo desde la BD.
@@ -82,16 +83,6 @@ public interface FlightBookingService {
                                 String externalId);
 
   Object callAmadeusCreateOrder(Object amadeusBookingData);
-
-  String generateBookingReference(Long bookingId, Booking.BookingType type);
-
-  /**
-   * Actualiza el pago con el ID de la reserva.
-   *
-   * @param paymentId id del pago
-   * @param bookingId ID de la reserva
-   */
-  void updatePaymentWithBookingId(Long paymentId, Long bookingId);
 
   /**
    * Extrae la fecha de salida del primer segmento.

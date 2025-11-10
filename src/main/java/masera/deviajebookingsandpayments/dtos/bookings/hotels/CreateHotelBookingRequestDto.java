@@ -1,17 +1,12 @@
 package masera.deviajebookingsandpayments.dtos.bookings.hotels;
 
-import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
 
 /**
  * DTO para crear una reserva de hotel.
@@ -26,11 +21,10 @@ public class CreateHotelBookingRequestDto {
 
   private Integer agentId;
 
-  private LocalDate cancellationFrom;
-  private BigDecimal cancellationAmount;
-
   @NotNull(message = "El titular de la reserva es obligatorio")
   private HolderDto holder;
+
+  private String countryName;
 
   @NotEmpty(message = "La lista de habitaciones no puede estar vacía")
   private List<RoomDto> rooms;

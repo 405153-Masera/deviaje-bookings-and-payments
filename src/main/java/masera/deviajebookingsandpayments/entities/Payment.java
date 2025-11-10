@@ -11,7 +11,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -39,6 +38,8 @@ public class Payment {
   @JoinColumn(name = "booking_id")
   private Booking booking;
 
+  private String type; // BOOKING, MEMBERSHIP
+
   @Column()
   private BigDecimal amount;
 
@@ -49,10 +50,10 @@ public class Payment {
   @Column(length = 50)
   private String method; // CREDIT_CARD, MERCADO_PAGO, TRANSFER, etc.
 
-  @Column(name = "payment_provider", length = 50)
+  @Column(length = 50)
   private String paymentProvider; // MERCADO_PAGO, STRIPE, etc.
 
-  @Column(name = "external_payment_id", length = 100)
+  @Column(length = 100)
   private String externalPaymentId; // ID del proveedor de pago
 
   @Enumerated(EnumType.STRING)

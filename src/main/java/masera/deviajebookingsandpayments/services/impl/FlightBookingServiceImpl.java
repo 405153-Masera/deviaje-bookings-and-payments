@@ -1,9 +1,6 @@
 package masera.deviajebookingsandpayments.services.impl;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
-import java.util.Optional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,16 +9,15 @@ import masera.deviajebookingsandpayments.dtos.bookings.flights.CreateFlightBooki
 import masera.deviajebookingsandpayments.dtos.bookings.flights.FlightOfferDto;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
+import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingDetailsDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.FlightBooking;
-import masera.deviajebookingsandpayments.entities.Payment;
-import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.FlightBookingRepository;
-import masera.deviajebookingsandpayments.repositories.PaymentRepository;
+import masera.deviajebookingsandpayments.services.interfaces.BookingService;
 import masera.deviajebookingsandpayments.services.interfaces.FlightBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import org.modelmapper.ModelMapper;
@@ -42,18 +38,18 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
   private final PaymentService paymentService;
 
+  private final BookingService bookingService;
+
   private final BookingRepository bookingRepository;
 
   private final FlightBookingRepository flightBookingRepository;
-
-  private final PaymentRepository paymentRepository;
 
   private final ModelMapper modelMapper;
 
   @Override
   @Transactional
-  public String bookAndPay(CreateFlightBookingRequestDto bookingRequest,
-                                 PaymentRequestDto paymentRequest, PricesDto prices) {
+  public BookingReferenceResponse bookAndPay(CreateFlightBookingRequestDto bookingRequest,
+                                             PaymentRequestDto paymentRequest, PricesDto prices) {
 
     log.info("Iniciando proceso de reserva y pago para vuelo. Cliente: {}",
             bookingRequest.getClientId());
@@ -75,11 +71,10 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     log.info("Procesando pago para reserva de vuelo");
     PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
 
-    // 5. Asociar el pago con la reserva
-    updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
+    this.bookingService.updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
 
     log.info("Reserva de vuelo completada exitosamente. ID: {}", savedBooking.getId());
-    return savedBooking.getBookingReference();
+    return new BookingReferenceResponse(savedBooking.getBookingReference());
   }
 
   @Override
@@ -133,36 +128,6 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   @Override
   public Object callAmadeusCreateOrder(Object amadeusBookingData) {
       return flightClient.createFlightOrder(amadeusBookingData).block();
-  }
-
-  @Override
-  public String generateBookingReference(Long bookingId, Booking.BookingType type) {
-    String prefix = switch (type) {
-      case FLIGHT -> "FL";
-      case HOTEL -> "HT";
-      case PACKAGE -> "PK";
-    };
-
-    String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-    String paddedId = String.format("%05d", bookingId);
-
-    return prefix + "-" + date + "-" + paddedId;
-  }
-
-  /**
-   * Actualiza el pago con el ID de la reserva.
-   */
-  @Override
-  public void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
-    Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
-    if (paymentOpt.isPresent()) {
-      Payment payment = paymentOpt.get();
-      Booking booking = bookingRepository.findById(bookingId).orElse(null);
-      if (booking != null) {
-        payment.setBooking(booking);
-        paymentRepository.save(payment);
-      }
-    }
   }
 
   /**
@@ -263,7 +228,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
 
     Booking savedBooking = bookingRepository.save(booking);
 
-    String bookingReference = generateBookingReference(savedBooking.getId(), savedBooking.getType());
+    String bookingReference = this.bookingService
+            .generateBookingReference(savedBooking.getId(), savedBooking.getType());
     savedBooking.setBookingReference(bookingReference);
     savedBooking = bookingRepository.save(savedBooking);
 

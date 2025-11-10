@@ -130,6 +130,7 @@ public class PaymentServiceImpl implements PaymentService {
                     .currency(paymentRequest.getCurrency())
                     .method(paymentRequest.getPaymentMethod())
                     .paymentProvider("MERCADO_PAGO")
+                    .type(paymentRequest.getType())
                     .externalPaymentId(createdPayment.getId().toString())
                     .status(mapMercadoPagoStatus(createdPayment.getStatus()))
                     .date(LocalDateTime.now())

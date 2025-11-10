@@ -33,6 +33,9 @@ public class PaymentRequestDto {
   @NotBlank(message = "El método de pago es obligatorio")
   private String paymentMethod; // "mercado_pago", "credit_card", etc.
 
+  @Builder.Default
+  private String type = "BOOKING";
+
   @NotBlank(message = "El token de pago es obligatorio")
   private String paymentToken; // Token seguro de MP o tarjeta
 

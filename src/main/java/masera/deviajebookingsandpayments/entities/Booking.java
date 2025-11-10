@@ -35,13 +35,11 @@ public class Booking {
   @GeneratedValue(strategy = GenerationType.IDENTITY) // Esto hace el auto increment
   private Long id;
 
-  @Column(name = "booking_reference",  unique = true)
+  @Column(unique = true)
   private String bookingReference;
 
-  @Column(name = "client_id")
   private Integer clientId;
 
-  @Column(name = "agent_id")
   private Integer agentId;
 
   @Enumerated(EnumType.STRING)
@@ -52,7 +50,7 @@ public class Booking {
   @Column(nullable = false, length = 20)
   private BookingType type;
 
-  @Column(name = "total_amount", nullable = false)
+  @Column(nullable = false)
   private BigDecimal totalAmount;
 
   @Column()
@@ -71,10 +69,9 @@ public class Booking {
   @Builder.Default
   private String currency = "ARS";
 
-  @Column(name = "holder_name", length = 120)
   private String holderName;
 
-  @Column(name = "country_calling_code", length = 5)
+  @Column(length = 5)
   private String countryCallingCode;
 
   @Column(length = 20)
@@ -83,7 +80,6 @@ public class Booking {
   @Column(length = 100)
   private String email;
 
-  @Column(name = "created_datetime")
   private LocalDateTime createdDatetime;
 
   // Relaciones

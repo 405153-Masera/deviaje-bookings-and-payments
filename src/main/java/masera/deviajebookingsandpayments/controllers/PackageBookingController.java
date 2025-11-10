@@ -5,6 +5,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.bookings.BookPackageAndPayRequest;
+import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.PackageBookingService;
 import org.springframework.http.ResponseEntity;
@@ -33,10 +34,10 @@ public class PackageBookingController {
    * @return respuesta unificada con reserva y pago
    */
   @PostMapping("/book-and-pay")
-  public ResponseEntity<String> bookPackageAndPay(
+  public ResponseEntity<BookingReferenceResponse> bookPackageAndPay(
           @Valid @RequestBody BookPackageAndPayRequest request) {
 
-    String response = packageBookingService.bookAndPay(
+    BookingReferenceResponse response = packageBookingService.bookAndPay(
               request.getPackageBookingRequest(),
               request.getPaymentRequest(),
               request.getPrices()

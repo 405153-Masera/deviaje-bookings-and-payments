@@ -37,17 +37,14 @@ public class FlightBooking {
   @JoinColumn(name = "booking_id", nullable = false)
   private Booking booking;
 
-  @Column(name = "external_id", length = 50)
   private String externalId; // ID de Amadeus
 
   private String origin;
 
   private String destination;
 
-  @Column(name = "departure_date")
   private String departureDate;
 
-  @Column(name = "return_date")
   private String returnDate;
 
   @Column(length = 2)
@@ -65,7 +62,7 @@ public class FlightBooking {
   @Column(columnDefinition = "JSON")
   private String itineraries; // Guardar lista de itinerarios en JSON
 
-  @Column(name = "total_price", nullable = false)
+  @Column(nullable = false)
   private BigDecimal totalPrice; // Grand total de Amadeus
 
   @Column()
@@ -74,14 +71,11 @@ public class FlightBooking {
   @Column(length = 3)
   private String currency;
 
-  @Column(name = "cancellation_from")
   private LocalDate cancellationFrom;
 
-  @Column(name = "cancellation_amount")
   @Builder.Default
   private BigDecimal cancellationAmount = BigDecimal.ZERO;
 
-  @Column(name = "created_datetime")
   private LocalDateTime createdDatetime;
 
   @PrePersist
