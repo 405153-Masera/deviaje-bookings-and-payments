@@ -6,7 +6,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
-import masera.deviajebookingsandpayments.entities.Booking;
+import masera.deviajebookingsandpayments.entities.BookingEntity;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
@@ -39,8 +39,8 @@ public class BookingController {
     log.info("Obteniendo reservas para el cliente: {}", clientId);
 
     try {
-      List<Booking> bookings = bookingRepository.findByClientId(clientId);
-      List<BookingResponseDto> response = bookings.stream()
+      List<BookingEntity> bookingEntities = bookingRepository.findByClientId(clientId);
+      List<BookingResponseDto> response = bookingEntities.stream()
               .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
               .collect(Collectors.toList());
 
@@ -62,7 +62,7 @@ public class BookingController {
     log.info("Obteniendo detalles de la reserva: {}", id);
 
     try {
-      Optional<Booking> bookingOpt = bookingRepository.findById(id);
+      Optional<BookingEntity> bookingOpt = bookingRepository.findById(id);
       if (bookingOpt.isEmpty()) {
         return ResponseEntity.notFound().build();
       }
@@ -87,8 +87,8 @@ public class BookingController {
     log.info("Obteniendo todas las reservas (administrador)");
 
     try {
-      List<Booking> bookings = bookingRepository.findAll();
-      List<BookingResponseDto> response = bookings.stream()
+      List<BookingEntity> bookingEntities = bookingRepository.findAll();
+      List<BookingResponseDto> response = bookingEntities.stream()
               .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
               .collect(Collectors.toList());
 
@@ -111,9 +111,9 @@ public class BookingController {
     log.info("Obteniendo reservas con estado: {}", status);
 
     try {
-      Booking.BookingStatus bookingStatus = Booking.BookingStatus.valueOf(status.toUpperCase());
-      List<Booking> bookings = bookingRepository.findByStatus(bookingStatus);
-      List<BookingResponseDto> response = bookings.stream()
+      BookingEntity.BookingStatus bookingStatus = BookingEntity.BookingStatus.valueOf(status.toUpperCase());
+      List<BookingEntity> bookingEntities = bookingRepository.findByStatus(bookingStatus);
+      List<BookingResponseDto> response = bookingEntities.stream()
               .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
               .collect(Collectors.toList());
 
@@ -138,8 +138,8 @@ public class BookingController {
     log.info("Obteniendo reservas para el agente: {}", agentId);
 
     try {
-      List<Booking> bookings = bookingRepository.findByAgentId(agentId);
-      List<BookingResponseDto> response = bookings.stream()
+      List<BookingEntity> bookingEntities = bookingRepository.findByAgentId(agentId);
+      List<BookingResponseDto> response = bookingEntities.stream()
               .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
               .collect(Collectors.toList());
 
@@ -165,9 +165,9 @@ public class BookingController {
     log.info("Obteniendo reservas de tipo {} para el cliente: {}", type, clientId);
 
     try {
-      Booking.BookingType bookingType = Booking.BookingType.valueOf(type.toUpperCase());
-      List<Booking> bookings = bookingRepository.findByClientIdAndType(clientId, bookingType);
-      List<BookingResponseDto> response = bookings.stream()
+      BookingEntity.BookingType bookingType = BookingEntity.BookingType.valueOf(type.toUpperCase());
+      List<BookingEntity> bookingEntities = bookingRepository.findByClientIdAndType(clientId, bookingType);
+      List<BookingResponseDto> response = bookingEntities.stream()
               .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
               .collect(Collectors.toList());
 

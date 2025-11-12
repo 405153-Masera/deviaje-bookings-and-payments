@@ -7,8 +7,8 @@ import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingDetailsDto;
-import masera.deviajebookingsandpayments.entities.Booking;
-import masera.deviajebookingsandpayments.entities.FlightBooking;
+import masera.deviajebookingsandpayments.entities.BookingEntity;
+import masera.deviajebookingsandpayments.entities.FlightBookingEntity;
 import org.springframework.stereotype.Service;
 
 /**
@@ -68,13 +68,13 @@ public interface FlightBookingService {
    *
    * @param request petición de la api amadeus
    * @param flightOffer oferta de vuelo
-   * @param booking reserva general
+   * @param bookingEntity reserva general
    * @param externalId id de la api amadeus
    * @param prices detalle del precio
    */
   void createFlightBookingEntity(CreateFlightBookingRequestDto request,
                                  FlightOfferDto flightOffer,
-                                 Booking booking,
+                                 BookingEntity bookingEntity,
                                  String externalId,
                                  PricesDto prices);
 
@@ -87,10 +87,10 @@ public interface FlightBookingService {
    * @param externalId ID externo de la reserva en Amadeus
    * @return la reserva guardada
    */
-  Booking saveBookingInDatabase(CreateFlightBookingRequestDto request,
-                                FlightOfferDto flightOffer,
-                                PricesDto prices,
-                                String externalId);
+  BookingEntity saveBookingInDatabase(CreateFlightBookingRequestDto request,
+                                      FlightOfferDto flightOffer,
+                                      PricesDto prices,
+                                      String externalId);
 
   /**
    * Metodo que crea la reserva en amadeus.
@@ -151,16 +151,16 @@ public interface FlightBookingService {
   /**
    * Convierte FlightBooking a FlightBookingResponseDto.
    *
-   * @param flightBooking entidad de reserva de vuelo
+   * @param flightBookingEntity entidad de reserva de vuelo
    * @return DTO de respuesta
    */
-  FlightBookingDetailsDto convertToFlightBookingResponse(FlightBooking flightBooking);
+  FlightBookingDetailsDto convertToFlightBookingResponse(FlightBookingEntity flightBookingEntity);
 
   /**
    * Convierte Booking a BookingResponseDto.
    *
-   * @param booking entidad de reserva
+   * @param bookingEntity entidad de reserva
    * @return DTO de respuesta
    */
-  BookingResponseDto convertToBookingResponse(Booking booking);
+  BookingResponseDto convertToBookingResponse(BookingEntity bookingEntity);
 }

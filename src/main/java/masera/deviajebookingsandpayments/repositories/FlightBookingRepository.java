@@ -2,7 +2,7 @@ package masera.deviajebookingsandpayments.repositories;
 
 import java.util.List;
 import java.util.Optional;
-import masera.deviajebookingsandpayments.entities.FlightBooking;
+import masera.deviajebookingsandpayments.entities.FlightBookingEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
  * Repositorio para acceder a los datos de FlightBooking.
  */
 @Repository
-public interface FlightBookingRepository extends JpaRepository<FlightBooking, Long> {
+public interface FlightBookingRepository extends JpaRepository<FlightBookingEntity, Long> {
 
   /**
    * Encuentra una reserva de vuelo por su ID externo.
@@ -19,7 +19,7 @@ public interface FlightBookingRepository extends JpaRepository<FlightBooking, Lo
    * @param externalId ID externo (de Amadeus)
    * @return Reserva de vuelo
    */
-  Optional<FlightBooking> findByExternalId(String externalId);
+  Optional<FlightBookingEntity> findByExternalId(String externalId);
 
   /**
    * Encuentra reservas de vuelo por origen y destino.
@@ -28,7 +28,7 @@ public interface FlightBookingRepository extends JpaRepository<FlightBooking, Lo
    * @param destination Destino (código IATA)
    * @return Lista de reservas de vuelo
    */
-  List<FlightBooking> findByOriginAndDestination(String origin, String destination);
+  List<FlightBookingEntity> findByOriginAndDestination(String origin, String destination);
 
   /**
    * Encuentra reservas de vuelo por ID de reserva principal.
@@ -36,7 +36,7 @@ public interface FlightBookingRepository extends JpaRepository<FlightBooking, Lo
    * @param bookingId ID de la reserva principal
    * @return Lista de reservas de vuelo
    */
-  List<FlightBooking> findByBookingId(Long bookingId);
+  List<FlightBookingEntity> findByBookingId(Long bookingId);
 
   /**
    * Encuentra reservas de vuelo por fecha de salida.
@@ -45,5 +45,5 @@ public interface FlightBookingRepository extends JpaRepository<FlightBooking, Lo
    * @param to Fecha final
    * @return Lista de reservas de vuelo
    */
-  List<FlightBooking> findByDepartureDateBetween(String from, String to);
+  List<FlightBookingEntity> findByDepartureDateBetween(String from, String to);
 }

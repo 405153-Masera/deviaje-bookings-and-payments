@@ -28,7 +28,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Payment {
+public class PaymentEntity {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,9 +36,11 @@ public class Payment {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "booking_id")
-  private Booking booking;
+  private BookingEntity bookingEntity;
 
-  private String type; // BOOKING, MEMBERSHIP
+  @Enumerated(EnumType.STRING)
+  @Column(length = 20)
+  private String type;
 
   @Column()
   private BigDecimal amount;
@@ -82,5 +84,15 @@ public class Payment {
     REJECTED,
     CANCELLED,
     REFUNDED
+  }
+
+  /**
+   * Enum para estados de pago.
+   */
+  public enum Type {
+    HOTEL,
+    FLIGHT,
+    PACKAGE,
+    MEMBERSHIP,
   }
 }

@@ -1,5 +1,7 @@
 package masera.deviajebookingsandpayments.services.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
@@ -19,8 +21,9 @@ import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingDetailsDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
-import masera.deviajebookingsandpayments.entities.Booking;
-import masera.deviajebookingsandpayments.entities.HotelBooking;
+import masera.deviajebookingsandpayments.entities.BookingEntity;
+import masera.deviajebookingsandpayments.entities.HotelBookingEntity;
+import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import masera.deviajebookingsandpayments.exceptions.HotelBedsApiException;
 import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
@@ -54,6 +57,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
   private final ModelMapper modelMapper;
 
+  private final ObjectMapper objectMapper;
+
   /**
    * Procesa una reserva de hotel y su pago de forma unificada.
    *
@@ -79,14 +84,15 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     String hotelBedsReference = hotelBedsResponse.getBooking().getReference();
 
     try {
-      Booking savedBooking = saveBookingInDatabase(
+      BookingEntity savedBookingEntity = saveBookingInDatabase(
               bookingRequest, prices, hotelBedsReference, hotelBedsResponse.getBooking()
       );
 
       log.info("Procesando pago para reserva de hotel");
-      PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
-      bookingService.updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
-      return new BookingReferenceResponse(savedBooking.getBookingReference());
+      PaymentResponseDto paymentResult = paymentService.processPayment(
+              paymentRequest, PaymentEntity.Type.HOTEL);
+      bookingService.updatePaymentWithBookingId(paymentResult.getId(), savedBookingEntity.getId());
+      return new BookingReferenceResponse(savedBookingEntity.getBookingReference());
 
     } catch (MercadoPagoException e) {
       log.error("Error en pago. Guardando intento fallido y cancelando en HotelBeds: {}",
@@ -207,7 +213,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
   @Override
   public void createHotelBookingEntity(CreateHotelBookingRequestDto request,
-                                       Booking booking,
+                                       BookingEntity bookingEntity,
                                        String externalId,
                                        PricesDto prices,
                                        HotelBookingApi hotelDetails) {
@@ -215,11 +221,12 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     LocalDate checkIn = LocalDate.parse(hotelDetails.getHotel().getCheckIn());
     LocalDate checkOut = LocalDate.parse(hotelDetails.getHotel().getCheckIn());
 
-    HotelBooking hotelBooking = HotelBooking.builder()
-            .booking(booking)
+    HotelBookingEntity hotelBookingEntity = HotelBookingEntity.builder()
+            .bookingEntity(bookingEntity)
             .externalId(externalId)
             .hotelName(hotelDetails.getHotel().getName())
             .destinationName(hotelDetails.getHotel().getDestinationName())
+            .countryName(request.getCountryName())
             .roomName(request.getRooms().getFirst().getRoomName())
             .boardName(request.getRooms().getFirst().getBoardName())
             .checkInDate(checkIn)
@@ -232,8 +239,12 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .taxes(prices.getTaxesHotel())
             .currency(prices.getCurrency())
             .build();
-
-    hotelBookingRepository.save(hotelBooking);
+    try {
+      hotelBookingEntity.setHotelBooking(objectMapper.writeValueAsString(hotelDetails));
+    } catch (JsonProcessingException e) {
+      log.error("Error al serializar el hotelBookingEntity", e);
+    }
+    hotelBookingRepository.save(hotelBookingEntity);
   }
 
   /**
@@ -247,16 +258,16 @@ public class HotelBookingServiceImpl implements HotelBookingService {
    */
   @Transactional
   @Override
-  public Booking saveBookingInDatabase(CreateHotelBookingRequestDto request,
-                                       PricesDto payment,
-                                       String externalId,
-                                       HotelBookingApi hotelDetails) {
+  public BookingEntity saveBookingInDatabase(CreateHotelBookingRequestDto request,
+                                             PricesDto payment,
+                                             String externalId,
+                                             HotelBookingApi hotelDetails) {
 
-    Booking booking = Booking.builder()
+    BookingEntity bookingEntity = BookingEntity.builder()
             .clientId(request.getClientId())
             .agentId(request.getAgentId())
-            .status(Booking.BookingStatus.CONFIRMED)
-            .type(Booking.BookingType.HOTEL)
+            .status(BookingEntity.BookingStatus.CONFIRMED)
+            .type(BookingEntity.BookingType.HOTEL)
             .holderName(request.getHolder().getName() + request.getHolder().getSurname())
             .totalAmount(payment.getTotalAmount())
             .commission(payment.getCommission())
@@ -268,14 +279,14 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .countryCallingCode(request.getHolder().getCountryCallingCode())
             .build();
 
-    Booking savedBooking = bookingRepository.save(booking);
+    BookingEntity savedBookingEntity = bookingRepository.save(bookingEntity);
 
     String bookingReference = this.bookingService
-            .generateBookingReference(savedBooking.getId(), savedBooking.getType());
-    savedBooking.setBookingReference(bookingReference);
-    savedBooking = bookingRepository.save(savedBooking);
-    createHotelBookingEntity(request, savedBooking, externalId, payment, hotelDetails);
-    return savedBooking;
+            .generateBookingReference(savedBookingEntity.getId(), savedBookingEntity.getType());
+    savedBookingEntity.setBookingReference(bookingReference);
+    savedBookingEntity = bookingRepository.save(savedBookingEntity);
+    createHotelBookingEntity(request, savedBookingEntity, externalId, payment, hotelDetails);
+    return savedBookingEntity;
   }
 
   @Override
@@ -297,7 +308,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   }
 
   @Override
-  public HotelBookingDetailsDto convertToHotelBookingResponse(HotelBooking hotelBooking) {
-    return modelMapper.map(hotelBooking, HotelBookingDetailsDto.class);
+  public HotelBookingDetailsDto convertToHotelBookingResponse(
+          HotelBookingEntity hotelBookingEntity) {
+    return modelMapper.map(hotelBookingEntity, HotelBookingDetailsDto.class);
   }
 }

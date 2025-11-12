@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import masera.deviajebookingsandpayments.entities.Payment;
+import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import org.springframework.http.ResponseEntity;
@@ -64,7 +64,7 @@ public class PaymentWebhookController {
   private void updatePaymentStatus(String mercadoPagoPaymentId) {
     try {
       // Verificar si el pago ya existe en nuestra BD
-      Optional<Payment> paymentOpt = paymentRepository
+      Optional<PaymentEntity> paymentOpt = paymentRepository
               .findByExternalPaymentId(mercadoPagoPaymentId);
 
       if (paymentOpt.isPresent()) {

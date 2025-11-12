@@ -8,8 +8,8 @@ import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingDetailsDto;
-import masera.deviajebookingsandpayments.entities.Booking;
-import masera.deviajebookingsandpayments.entities.HotelBooking;
+import masera.deviajebookingsandpayments.entities.BookingEntity;
+import masera.deviajebookingsandpayments.entities.HotelBookingEntity;
 import org.springframework.stereotype.Service;
 
 /**
@@ -73,13 +73,13 @@ public interface HotelBookingService {
    * Metodo que crea la entidad de la reserva.
    *
    * @param request petición de la api hotelbeds
-   * @param booking reserva ya creada
+   * @param bookingEntity reserva ya creada
    * @param externalId referencia de hotelbeds
    * @param prices detalles del precio
    * @param hotelDetails detalles de la reserva
    */
   void createHotelBookingEntity(CreateHotelBookingRequestDto request,
-                                Booking booking,
+                                BookingEntity bookingEntity,
                                 String externalId,
                                 PricesDto prices,
                                 HotelBookingApi hotelDetails);
@@ -94,10 +94,10 @@ public interface HotelBookingService {
    * @param hotelDetails detalles de la reserva
    * @return la entidad guardada
    */
-  Booking saveBookingInDatabase(CreateHotelBookingRequestDto request,
-                                PricesDto payment,
-                                String externalId,
-                                HotelBookingApi hotelDetails);
+  BookingEntity saveBookingInDatabase(CreateHotelBookingRequestDto request,
+                                      PricesDto payment,
+                                      String externalId,
+                                      HotelBookingApi hotelDetails);
 
   /**
    * Metodo que cuenta la cantidad de adultos.
@@ -118,8 +118,8 @@ public interface HotelBookingService {
   /**
    *  Metodo que facilita el mapeo entre la entidad y el DTO.
    *
-   * @param hotelBooking la entidad de la reserva
+   * @param hotelBookingEntity la entidad de la reserva
    * @return el DTO de respuesta
    */
-  HotelBookingDetailsDto convertToHotelBookingResponse(HotelBooking hotelBooking);
+  HotelBookingDetailsDto convertToHotelBookingResponse(HotelBookingEntity hotelBookingEntity);
 }

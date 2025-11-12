@@ -1,6 +1,6 @@
 package masera.deviajebookingsandpayments.services.interfaces;
 
-import masera.deviajebookingsandpayments.entities.Booking;
+import masera.deviajebookingsandpayments.entities.BookingEntity;
 import org.springframework.stereotype.Service;
 
 /**
@@ -24,5 +24,5 @@ public interface BookingService {
    * @param type tipo de reserva
    * @return la referencia amigable para el usuario
    */
-  String generateBookingReference(Long bookingId, Booking.BookingType type);
+  String generateBookingReference(Long bookingId, BookingEntity.BookingType type);
 }

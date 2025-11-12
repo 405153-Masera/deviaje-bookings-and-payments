@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class FlightBooking {
+public class FlightBookingEntity {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,7 +35,7 @@ public class FlightBooking {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "booking_id", nullable = false)
-  private Booking booking;
+  private BookingEntity bookingEntity;
 
   private String externalId; // ID de Amadeus
 

@@ -2,7 +2,7 @@ package masera.deviajebookingsandpayments.repositories;
 
 import java.util.List;
 import java.util.Optional;
-import masera.deviajebookingsandpayments.entities.Payment;
+import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
  * Repositorio para acceder a los datos de Payment.
  */
 @Repository
-public interface PaymentRepository extends JpaRepository<Payment, Long> {
+public interface PaymentRepository extends JpaRepository<PaymentEntity, Long> {
 
   /**
    * Encuentra pagos por ID de reserva.
@@ -18,7 +18,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
    * @param bookingId ID de la reserva
    * @return Lista de pagos de la reserva
    */
-  List<Payment> findByBookingId(Long bookingId);
+  List<PaymentEntity> findByBookingId(Long bookingId);
 
   /**
    * Encuentra pagos por ID externo de pago.
@@ -26,7 +26,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
    * @param externalPaymentId id externo del pago (del proveedor)
    * @return Pago
    */
-  Optional<Payment> findByExternalPaymentId(String externalPaymentId);
+  Optional<PaymentEntity> findByExternalPaymentId(String externalPaymentId);
 
   /**
    * Encuentra pagos por estado.
@@ -34,7 +34,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
    * @param status Estado del pago
    * @return Lista de pagos con el estado especificado
    */
-  List<Payment> findByStatus(Payment.PaymentStatus status);
+  List<PaymentEntity> findByStatus(PaymentEntity.PaymentStatus status);
 
   /**
    * Encuentra pagos por método de pago.
@@ -42,5 +42,5 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
    * @param method Método de pago
    * @return Lista de pagos con el método especificado
    */
-  List<Payment> findByMethod(String method);
+  List<PaymentEntity> findByMethod(String method);
 }

@@ -1,7 +1,7 @@
 package masera.deviajebookingsandpayments.services.impl;
 
-import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.clients.FlightClient;
@@ -13,8 +13,9 @@ import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.FlightBookingDetailsDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
-import masera.deviajebookingsandpayments.entities.Booking;
-import masera.deviajebookingsandpayments.entities.FlightBooking;
+import masera.deviajebookingsandpayments.entities.BookingEntity;
+import masera.deviajebookingsandpayments.entities.FlightBookingEntity;
+import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.FlightBookingRepository;
 import masera.deviajebookingsandpayments.services.interfaces.BookingService;
@@ -57,23 +58,23 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     Object amadeusBookingData = prepareAmadeusBookingData(bookingRequest);
     Object amadeusResponse = flightClient.createFlightOrder(amadeusBookingData).block();
 
-    // 2. Extraer datos de la respuesta de Amadeus
     String externalId = extractExternalId(amadeusResponse);
 
-    // 3. Guardar en nuestra base de datos
     log.info("Guardando reserva en base de datos");
     FlightOfferDto flightOffer = bookingRequest.getFlightOffer();
-    Booking savedBooking = saveBookingInDatabase(bookingRequest,
+    BookingEntity savedBookingEntity = saveBookingInDatabase(bookingRequest,
             flightOffer, prices, externalId);
 
     // 4. Procesar pago PRIMERO
     log.info("Procesando pago para reserva de vuelo");
-    PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
+    PaymentResponseDto paymentResult = paymentService.processPayment(
+            paymentRequest, PaymentEntity.Type.FLIGHT);
 
-    this.bookingService.updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
+    this.bookingService.updatePaymentWithBookingId(
+            paymentResult.getId(), savedBookingEntity.getId());
 
-    log.info("Reserva de vuelo completada exitosamente. ID: {}", savedBooking.getId());
-    return new BookingReferenceResponse(savedBooking.getBookingReference());
+    log.info("Reserva de vuelo completada exitosamente. ID: {}", savedBookingEntity.getId());
+    return new BookingReferenceResponse(savedBookingEntity.getBookingReference());
   }
 
   @Override
@@ -122,11 +123,11 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   }
 
   /**
-   * Llama a Amadeus para crear la reserva de vuelo con manejo de errores específico
+   * Llama a Amadeus para crear la reserva de vuelo con manejo de errores específico.
    */
   @Override
   public Object callAmadeusCreateOrder(Object amadeusBookingData) {
-      return flightClient.createFlightOrder(amadeusBookingData).block();
+    return flightClient.createFlightOrder(amadeusBookingData).block();
   }
 
   /**
@@ -153,7 +154,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   @Override
   public void createFlightBookingEntity(CreateFlightBookingRequestDto request,
                                         FlightOfferDto flightOffer,
-                                        Booking booking,
+                                        BookingEntity bookingEntity,
                                         String externalId,
                                         PricesDto prices) {
 
@@ -165,8 +166,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
       log.warn("Error al convertir itinerarios a JSON: {}", e.getMessage());
     }
 
-    FlightBooking flightBooking = FlightBooking.builder()
-            .booking(booking)
+    FlightBookingEntity flightBookingEntity = FlightBookingEntity.builder()
+            .bookingEntity(bookingEntity)
             .externalId(externalId)
             .origin(request.getOrigin())
             .destination(request.getDestination())
@@ -184,7 +185,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .cancellationAmount(request.getCancellationAmount())
             .build();
 
-    flightBookingRepository.save(flightBooking);
+    flightBookingRepository.save(flightBookingEntity);
   }
 
   /**
@@ -198,20 +199,20 @@ public class FlightBookingServiceImpl implements FlightBookingService {
    */
   @Override
   @Transactional
-  public Booking saveBookingInDatabase(CreateFlightBookingRequestDto request,
-                                          FlightOfferDto flightOffer,
-                                          PricesDto payment,
-                                          String externalId) {
+  public BookingEntity saveBookingInDatabase(CreateFlightBookingRequestDto request,
+                                             FlightOfferDto flightOffer,
+                                             PricesDto payment,
+                                             String externalId) {
 
-    String holderName = request.getTravelers().getFirst().getName().getFirstName() + ", " +
-            request.getTravelers().getFirst().getName().getLastName();
+    String holderName = request.getTravelers().getFirst().getName().getFirstName() + ", "
+            + request.getTravelers().getFirst().getName().getLastName();
 
     // 1. Crear booking principal
-    Booking booking = Booking.builder()
+    BookingEntity bookingEntity = BookingEntity.builder()
             .clientId(request.getClientId())
             .agentId(request.getAgentId())
-            .status(Booking.BookingStatus.CONFIRMED)
-            .type(Booking.BookingType.FLIGHT)
+            .status(BookingEntity.BookingStatus.CONFIRMED)
+            .type(BookingEntity.BookingType.FLIGHT)
             .totalAmount(payment.getTotalAmount())
             .commission(payment.getCommission())
             .discount(payment.getDiscount())
@@ -225,15 +226,15 @@ public class FlightBookingServiceImpl implements FlightBookingService {
                     .getContact().getPhones().getFirst().getCountryCallingCode())
             .build();
 
-    Booking savedBooking = bookingRepository.save(booking);
+    BookingEntity savedBookingEntity = bookingRepository.save(bookingEntity);
 
     String bookingReference = this.bookingService
-            .generateBookingReference(savedBooking.getId(), savedBooking.getType());
-    savedBooking.setBookingReference(bookingReference);
-    savedBooking = bookingRepository.save(savedBooking);
+            .generateBookingReference(savedBookingEntity.getId(), savedBookingEntity.getType());
+    savedBookingEntity.setBookingReference(bookingReference);
+    savedBookingEntity = bookingRepository.save(savedBookingEntity);
 
-    createFlightBookingEntity(request, flightOffer, savedBooking, externalId, payment);
-    return savedBooking;
+    createFlightBookingEntity(request, flightOffer, savedBookingEntity, externalId, payment);
+    return savedBookingEntity;
   }
 
   @Override
@@ -297,12 +298,13 @@ public class FlightBookingServiceImpl implements FlightBookingService {
   }
 
   @Override
-  public FlightBookingDetailsDto convertToFlightBookingResponse(FlightBooking flightBooking) {
-    return modelMapper.map(flightBooking, FlightBookingDetailsDto.class);
+  public FlightBookingDetailsDto convertToFlightBookingResponse(
+          FlightBookingEntity flightBookingEntity) {
+    return modelMapper.map(flightBookingEntity, FlightBookingDetailsDto.class);
   }
 
   @Override
-  public BookingResponseDto convertToBookingResponse(Booking booking) {
-    return modelMapper.map(booking, BookingResponseDto.class);
+  public BookingResponseDto convertToBookingResponse(BookingEntity bookingEntity) {
+    return modelMapper.map(bookingEntity, BookingResponseDto.class);
   }
 }

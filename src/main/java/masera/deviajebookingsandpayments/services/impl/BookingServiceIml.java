@@ -5,8 +5,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import masera.deviajebookingsandpayments.entities.Booking;
-import masera.deviajebookingsandpayments.entities.Payment;
+import masera.deviajebookingsandpayments.entities.BookingEntity;
+import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
 import masera.deviajebookingsandpayments.services.interfaces.BookingService;
@@ -29,19 +29,19 @@ public class BookingServiceIml implements BookingService {
    */
   @Override
   public void updatePaymentWithBookingId(Long paymentId, Long bookingId) {
-    Optional<Payment> paymentOpt = paymentRepository.findById(paymentId);
+    Optional<PaymentEntity> paymentOpt = paymentRepository.findById(paymentId);
     if (paymentOpt.isPresent()) {
-      Payment payment = paymentOpt.get();
-      Booking booking = bookingRepository.findById(bookingId).orElse(null);
-      if (booking != null) {
-        payment.setBooking(booking);
-        paymentRepository.save(payment);
+      PaymentEntity paymentEntity = paymentOpt.get();
+      BookingEntity bookingEntity = bookingRepository.findById(bookingId).orElse(null);
+      if (bookingEntity != null) {
+        paymentEntity.setBookingEntity(bookingEntity);
+        paymentRepository.save(paymentEntity);
       }
     }
   }
 
   @Override
-  public String generateBookingReference(Long bookingId, Booking.BookingType type) {
+  public String generateBookingReference(Long bookingId, BookingEntity.BookingType type) {
     String prefix = switch (type) {
       case FLIGHT -> "FL";
       case HOTEL -> "HT";

@@ -3,7 +3,7 @@ package masera.deviajebookingsandpayments.repositories;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import masera.deviajebookingsandpayments.entities.HotelBooking;
+import masera.deviajebookingsandpayments.entities.HotelBookingEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
  * Repositorio para acceder a los datos de HotelBooking.
  */
 @Repository
-public interface HotelBookingRepository extends JpaRepository<HotelBooking, Long> {
+public interface HotelBookingRepository extends JpaRepository<HotelBookingEntity, Long> {
 
   /**
    * Encuentra una reserva de hotel por su ID externo.
@@ -20,7 +20,7 @@ public interface HotelBookingRepository extends JpaRepository<HotelBooking, Long
    * @param externalId ID externo (de HotelBeds)
    * @return Reserva de hotel
    */
-  Optional<HotelBooking> findByExternalId(String externalId);
+  Optional<HotelBookingEntity> findByExternalId(String externalId);
 
   /**
    * Encuentra reservas de hotel por ID de reserva principal.
@@ -28,7 +28,7 @@ public interface HotelBookingRepository extends JpaRepository<HotelBooking, Long
    * @param bookingId ID de la reserva principal
    * @return Lista de reservas de hotel
    */
-  List<HotelBooking> findByBookingId(Long bookingId);
+  List<HotelBookingEntity> findByBookingId(Long bookingId);
 
   /**
    * Encuentra reservas de hoteles por fecha de check-in.
@@ -37,5 +37,5 @@ public interface HotelBookingRepository extends JpaRepository<HotelBooking, Long
    * @param to Fecha final
    * @return Lista de reservas de hotel
    */
-  List<HotelBooking> findByCheckInDateBetween(LocalDate from, LocalDate to);
+  List<HotelBookingEntity> findByCheckInDateBetween(LocalDate from, LocalDate to);
 }

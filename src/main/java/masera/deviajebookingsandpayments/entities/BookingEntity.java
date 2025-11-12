@@ -29,7 +29,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Booking {
+public class BookingEntity {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY) // Esto hace el auto increment
@@ -86,13 +86,13 @@ public class Booking {
 
   // Relaciones
   @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-  private List<FlightBooking> flightBookings;
+  private List<FlightBookingEntity> flightBookingEntities;
 
   @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-  private List<HotelBooking> hotelBookings;
+  private List<HotelBookingEntity> hotelBookingEntities;
 
   @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-  private List<Payment> payments;
+  private List<PaymentEntity> paymentEntities;
 
   /**
    * Metodo que se activa antes de persistir en la base de datos.
