@@ -13,7 +13,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class Co2EmissionDto {
+
   private Integer weight;
+
   private String weightUnit;
+
   private String cabin;
 }

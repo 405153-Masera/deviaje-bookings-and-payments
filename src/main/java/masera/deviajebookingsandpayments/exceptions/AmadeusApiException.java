@@ -20,16 +20,4 @@ public class AmadeusApiException extends  RuntimeException {
     super(message);
     this.statusCode = statusCode;
   }
-
-  /**
-   * Constructor de la clase.
-   *
-   * @param message Mensaje de error.
-   * @param cause Causa de la excepción.
-   * @param statusCode Código de estado HTTP.
-   */
-  public AmadeusApiException(String message, Throwable cause, int statusCode) {
-    super(message, cause);
-    this.statusCode = statusCode;
-  }
 }

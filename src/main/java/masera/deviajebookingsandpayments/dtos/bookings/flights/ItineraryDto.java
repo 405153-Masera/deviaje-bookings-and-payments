@@ -14,6 +14,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class ItineraryDto {
+
   private String duration;
+
   private List<SegmentDto> segments;
 }

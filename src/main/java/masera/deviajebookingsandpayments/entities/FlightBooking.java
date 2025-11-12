@@ -78,6 +78,9 @@ public class FlightBooking {
 
   private LocalDateTime createdDatetime;
 
+  /**
+   * Metodo que se ejecuta antes de guardarse en la base de datos.
+   */
   @PrePersist
   protected void onCreate() {
     this.createdDatetime = LocalDateTime.now();

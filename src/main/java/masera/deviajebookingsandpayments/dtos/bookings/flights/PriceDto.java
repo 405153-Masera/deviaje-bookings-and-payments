@@ -14,11 +14,18 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class PriceDto {
+
   private String currency;
+
   private String total;
+
   private String base;
+
   private List<FeeDto> fees;
+
   private String grandTotal;
+
   private String billingCurrency;
+
   private List<AdditionalServiceDto> additionalServices;
 }

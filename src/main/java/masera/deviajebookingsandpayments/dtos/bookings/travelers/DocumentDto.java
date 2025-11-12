@@ -5,21 +5,32 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
-
+/**
+ * DTO que representa un documento del pasajero.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class DocumentDto {
+
   private String documentType;
+
   private String birthPlace;
+
   private String issuanceLocation;
+
   private String issuanceDate;
+
   private String number;
+
   private String expiryDate;
+
   private String issuanceCountry;
+
   private String validityCountry;
+
   private String nationality;
+
   private Boolean holder;
 }

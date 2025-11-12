@@ -16,20 +16,35 @@ import lombok.NoArgsConstructor;
 public class FlightOfferDto {
 
   private String type = "flight-offer";
+
   private String id;
-  private String source = "GDS"; // Agregado del GET
+
+  private String source = "GDS";
+
   private Boolean instantTicketingRequired;
+
   private Boolean nonHomogeneous;
-  private Boolean oneWay; // Agregado del GET
-  private Boolean isUpsellOffer; // Agregado del GET
+
+  private Boolean oneWay;
+
+  private Boolean isUpsellOffer;
+
   private Boolean paymentCardRequired;
+
   private String lastTicketingDate;
-  private String lastTicketingDateTime; // Agregado del GET
-  private Integer numberOfBookableSeats; // Agregado del GET
+
+  private String lastTicketingDateTime;
+
+  private Integer numberOfBookableSeats;
+
   private List<ItineraryDto> itineraries;
+
   private PriceDto price;
-  private PricingOptionsDto pricingOptions; // Agregado del GET
+
+  private PricingOptionsDto pricingOptions;
+
   private List<String> validatingAirlineCodes;
+
   private List<TravelerPricingDto> travelerPricings;
 }
 

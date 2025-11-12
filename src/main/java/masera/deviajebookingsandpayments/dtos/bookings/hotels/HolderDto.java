@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * DTO que representa el titular de la reserva.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,5 +24,6 @@ public class HolderDto {
   private String email;
 
   private String phone;
+
   private String countryCallingCode;
 }

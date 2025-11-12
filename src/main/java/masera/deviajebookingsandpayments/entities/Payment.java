@@ -54,7 +54,7 @@ public class Payment {
   private String paymentProvider; // MERCADO_PAGO, STRIPE, etc.
 
   @Column(length = 100)
-  private String externalPaymentId; // ID del proveedor de pago
+  private String externalPaymentId;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
@@ -62,6 +62,10 @@ public class Payment {
 
   @Column
   private LocalDateTime date;
+
+  /**
+   * Metodo que se ejecuta antes de guardarse en la base de datos.
+   */
   @PrePersist
   protected void onCreate() {
     if (this.date == null) {

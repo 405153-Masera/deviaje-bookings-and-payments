@@ -1,8 +1,8 @@
 package masera.deviajebookingsandpayments.dtos.bookings.hotels;
 
-import java.util.List;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,4 +35,3 @@ public class CreateHotelBookingRequestDto {
 
   private Integer tolerance = 2;
 }
-

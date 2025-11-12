@@ -5,12 +5,18 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * DTO que representa un número teléfono.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class PhoneDto {
+
   private String deviceType;
+
   private String countryCallingCode;
+
   private String number;
 }

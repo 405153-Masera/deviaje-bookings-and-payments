@@ -13,6 +13,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class OperatingDto {
+
   private String carrierCode;
+
   private String carrierName;
 }

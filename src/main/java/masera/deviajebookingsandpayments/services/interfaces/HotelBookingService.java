@@ -8,11 +8,9 @@ import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingDetailsDto;
-import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.HotelBooking;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Interfaz para el servicio de reservas de hoteles.
@@ -55,31 +53,73 @@ public interface HotelBookingService {
    */
   Object checkRates(String rateKey);
 
+  /**
+   * Metodo que prepara la request para hotelbeds.
+   *
+   * @param request representa la previa de la request
+   * @return la request
+   */
   Map<String, Object> prepareHotelBedsBookingRequest(CreateHotelBookingRequestDto request);
 
+  /**
+   * Metodo que crea la reserva en hotelbeds.
+   *
+   * @param hotelBedsRequest request del endpoint
+   * @return la reserva ya creada
+   */
   HotelBookingResponse callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest);
 
+  /**
+   * Metodo que crea la entidad de la reserva.
+   *
+   * @param request petición de la api hotelbeds
+   * @param booking reserva ya creada
+   * @param externalId referencia de hotelbeds
+   * @param prices detalles del precio
+   * @param hotelDetails detalles de la reserva
+   */
   void createHotelBookingEntity(CreateHotelBookingRequestDto request,
                                 Booking booking,
                                 String externalId,
                                 PricesDto prices,
                                 HotelBookingApi hotelDetails);
 
-  @Transactional
+
+  /**
+   * Metodo que crea guarda la reserva en la base de datos.
+   *
+   * @param request petición de hotelbeds
+   * @param payment detalles del pago
+   * @param externalId referencia de hotelbeds
+   * @param hotelDetails detalles de la reserva
+   * @return la entidad guardada
+   */
   Booking saveBookingInDatabase(CreateHotelBookingRequestDto request,
                                 PricesDto payment,
                                 String externalId,
                                 HotelBookingApi hotelDetails);
 
+  /**
+   * Metodo que cuenta la cantidad de adultos.
+   *
+   * @param request petición de hotelbeds
+   * @return la cantidad de adultos
+   */
   Integer countAdults(CreateHotelBookingRequestDto request);
 
+  /**
+   * Metodo que cuenta la cantidad de chicos.
+   *
+   * @param request petición de hotelbeds
+   * @return la cantidad de chicos
+   */
   Integer countChildren(CreateHotelBookingRequestDto request);
 
   /**
-   *  Convierte
+   *  Metodo que facilita el mapeo entre la entidad y el DTO.
    *
-   * @param hotelBooking
-   * @return
+   * @param hotelBooking la entidad de la reserva
+   * @return el DTO de respuesta
    */
   HotelBookingDetailsDto convertToHotelBookingResponse(HotelBooking hotelBooking);
 }

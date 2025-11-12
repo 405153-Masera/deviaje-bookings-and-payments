@@ -62,6 +62,16 @@ public interface FlightBookingService {
    */
   String extractExternalId(Object amadeusResponse);
 
+
+  /**
+   * Metodo para crear la entidad de la reserva de vuelo.
+   *
+   * @param request petición de la api amadeus
+   * @param flightOffer oferta de vuelo
+   * @param booking reserva general
+   * @param externalId id de la api amadeus
+   * @param prices detalle del precio
+   */
   void createFlightBookingEntity(CreateFlightBookingRequestDto request,
                                  FlightOfferDto flightOffer,
                                  Booking booking,
@@ -82,6 +92,12 @@ public interface FlightBookingService {
                                 PricesDto prices,
                                 String externalId);
 
+  /**
+   * Metodo que crea la reserva en amadeus.
+   *
+   * @param amadeusBookingData petición de la reserva
+   * @return la reserva ya creada
+   */
   Object callAmadeusCreateOrder(Object amadeusBookingData);
 
   /**

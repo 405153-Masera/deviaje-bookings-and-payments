@@ -108,31 +108,6 @@ public class FlightClient {
   }
 
   /**
-   * Obtiene los detalles de una reserva de vuelo existente.
-   *
-   * @param flightOrderId ID de la reserva en Amadeus
-   * @return detalles de la reserva
-   */
-  public Mono<Object> getFlightOrder(String flightOrderId) {
-    log.info("Obteniendo detalles de reserva de vuelo: {}", flightOrderId);
-
-    String uri = amadeusConfig.getBaseUrl() + FLIGHT_ORDERS_URL + "/" + flightOrderId;
-    String token = amadeusTokenService.getToken();
-
-    return webClient.get()
-            .uri(uri)
-            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-            .retrieve()
-            .bodyToMono(Object.class)
-            .doOnSuccess(response -> log.info("Detalles de reserva obtenidos"))
-            .doOnError(error -> log.error("Error al obtener detalles de reserva: {}",
-                                                      error.getMessage()))
-            .onErrorResume(WebClientResponseException.class, e -> {
-              throw errorHandler.handleAmadeusError(e);
-            });
-  }
-
-  /**
    * Cancela una reserva de vuelo existente.
    *
    * @param flightOrderId ID de la reserva en Amadeus

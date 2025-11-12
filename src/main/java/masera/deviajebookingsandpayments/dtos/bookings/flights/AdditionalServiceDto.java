@@ -13,6 +13,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class AdditionalServiceDto {
+
   private String amount;
+
   private String type;
 }

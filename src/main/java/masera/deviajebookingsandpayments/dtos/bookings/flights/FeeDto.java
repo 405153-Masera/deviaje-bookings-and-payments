@@ -13,6 +13,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class FeeDto {
+
   private String amount;
+
   private String type;
 }

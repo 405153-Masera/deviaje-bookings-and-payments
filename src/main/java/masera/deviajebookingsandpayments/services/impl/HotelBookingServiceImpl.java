@@ -86,20 +86,18 @@ public class HotelBookingServiceImpl implements HotelBookingService {
       log.info("Procesando pago para reserva de hotel");
       PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
       bookingService.updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
-      savedBooking.setStatus(Booking.BookingStatus.CONFIRMED);
-      bookingRepository.save(savedBooking);
       return new BookingReferenceResponse(savedBooking.getBookingReference());
 
     } catch (MercadoPagoException e) {
       log.error("Error en pago. Guardando intento fallido y cancelando en HotelBeds: {}",
               hotelBedsReference);
 
-      bookingService.saveFailedBookingAttempt(bookingRequest,
-              Booking.BookingType.HOTEL,
-              prices,
-              hotelBedsReference,
-              e.getMessage()
-      );
+      cancelInHotelBeds(hotelBedsReference);
+      throw e;
+    } catch (Exception e) {
+      log.error("Error en proceso de reserva y pago para hotel. Cancelando en HotelBeds: {}",
+              hotelBedsReference);
+
       cancelInHotelBeds(hotelBedsReference);
       throw e;
     }
@@ -114,7 +112,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
       log.info("Reserva cancelada en HotelBeds: {}", hotelBedsReference);
 
     } catch (Exception e) {
-      bookingService.handleCriticalCancellationError(hotelBedsReference, "HOTELBEDS", e);
+      log.info("La reserva no pudo ser cancelada en HotelBeds: {}", hotelBedsReference);
     }
   }
 
@@ -257,7 +255,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     Booking booking = Booking.builder()
             .clientId(request.getClientId())
             .agentId(request.getAgentId())
-            .status(Booking.BookingStatus.PENDING_PAYMENT)
+            .status(Booking.BookingStatus.CONFIRMED)
             .type(Booking.BookingType.HOTEL)
             .holderName(request.getHolder().getName() + request.getHolder().getSurname())
             .totalAmount(payment.getTotalAmount())

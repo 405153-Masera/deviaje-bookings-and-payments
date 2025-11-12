@@ -6,19 +6,31 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * DTO que representa los detalles de una tarifa.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class FareDetailsBySegmentDto {
+
   private String segmentId;
+
   private String cabin;
+
   private String fareBasis;
+
   private String brandedFare;
-  private String brandedFareLabel; // Agregado del GET
+
+  private String brandedFareLabel;
+
   @JsonProperty("class")
   private String classCode;
+
   private String sliceDiceIndicator;
+
   private IncludedCheckedBagsDto includedCheckedBags;
-  private IncludedCabinBagsDto includedCabinBags; // Agregado del GET
+
+  private IncludedCabinBagsDto includedCabinBags;
 }

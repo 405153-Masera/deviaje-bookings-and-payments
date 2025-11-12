@@ -35,16 +35,4 @@ public class HotelBedsApiException extends RuntimeException {
     this.statusCode = statusCode;
     this.internalCode = internalCode;
   }
-
-  /**
-   * Constructor con causa.
-   *
-   * @param message    Mensaje de error
-   * @param statusCode Código de estado HTTP
-   * @param cause      Causa de la excepción
-   */
-  public HotelBedsApiException(String message, int statusCode, Throwable cause) {
-    super(message, cause);
-    this.statusCode = statusCode;
-  }
 }

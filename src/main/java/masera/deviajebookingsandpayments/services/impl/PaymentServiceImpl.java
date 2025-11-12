@@ -48,7 +48,6 @@ public class PaymentServiceImpl implements PaymentService {
   }
 
   @Override
-  @Transactional
   public PaymentResponseDto processPayment(PaymentRequestDto paymentRequest) {
     log.info("Procesando pago por {} {}", paymentRequest.getAmount(), paymentRequest.getCurrency());
 
@@ -87,8 +86,6 @@ public class PaymentServiceImpl implements PaymentService {
   private PaymentResponseDto processDirectPayment(PaymentRequestDto paymentRequest)
                                               throws MPException, MPApiException {
 
-    PaymentClient paymentClient = new PaymentClient();
-
     PaymentPayerRequest.PaymentPayerRequestBuilder payerBuilder = null;
     if (paymentRequest.getPayer() != null && paymentRequest.getPayer().getEmail() != null) {
       payerBuilder = PaymentPayerRequest.builder()
@@ -118,11 +115,13 @@ public class PaymentServiceImpl implements PaymentService {
     }
     PaymentCreateRequest paymentCreateRequest = paymentBuilder.build();
 
+    PaymentClient paymentClient = new PaymentClient();
     log.info("Enviando request a Mercado Pago: {}", paymentCreateRequest);
     Payment createdPayment =
               paymentClient.create(paymentCreateRequest);
 
-    log.info("Pago procesado exitosamente: ID={}, Status={}", createdPayment.getId(), createdPayment.getStatus());
+    log.info("Pago procesado exitosamente: ID={}, Status={}",
+            createdPayment.getId(), createdPayment.getStatus());
 
     masera.deviajebookingsandpayments.entities.Payment paymentEntity =
             masera.deviajebookingsandpayments.entities.Payment.builder()
@@ -162,7 +161,6 @@ public class PaymentServiceImpl implements PaymentService {
               statusDetail
       );
     }
-
   }
 
   @Override
@@ -405,7 +403,9 @@ public class PaymentServiceImpl implements PaymentService {
    * Mapea el status de pago de MP a código HTTP.
    */
   private int mapPaymentStatusToHttpCode(String paymentStatus) {
-    if (paymentStatus == null) return 402;
+    if (paymentStatus == null) {
+      return 402;
+    }
 
     return switch (paymentStatus.toLowerCase()) {
       case "rejected" -> 402; // Payment Required
@@ -419,7 +419,9 @@ public class PaymentServiceImpl implements PaymentService {
    * Obtiene mensaje amigable según el status detail de MP.
    */
   private String getPaymentErrorMessage(String statusDetail) {
-    if (statusDetail == null) return "Pago rechazado";
+    if (statusDetail == null) {
+      return "Pago rechazado";
+    }
 
     return switch (statusDetail) {
       case "cc_rejected_insufficient_amount" ->

@@ -36,7 +36,7 @@ public interface PaymentService {
   /**
    * Verifica el estado de un pago.
    *
-   * @param paymentId ID del pago
+   * @param paymentId id del pago
    * @return estado actualizado del pago
    */
   PaymentResponseDto checkPaymentStatus(Long paymentId);
@@ -44,7 +44,7 @@ public interface PaymentService {
   /**
    * Verifica el estado de un pago externo por su ID.
    *
-   * @param externalPaymentId ID externo del pago
+   * @param externalPaymentId id externo del pago
    * @return estado actualizado del pago
    */
   PaymentResponseDto checkExternalPaymentStatus(String externalPaymentId);

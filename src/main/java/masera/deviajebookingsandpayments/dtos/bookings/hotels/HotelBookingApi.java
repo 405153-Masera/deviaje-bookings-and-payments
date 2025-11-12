@@ -6,6 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * DTO que representa la reserva de hotelbeds.
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -37,6 +40,9 @@ public class HotelBookingApi {
 
   private String currency;
 
+  /**
+   * DTO que representa las políticas de la reserva.
+   */
   @Data
   public static class ModificationPolicies {
 
@@ -45,6 +51,9 @@ public class HotelBookingApi {
     private boolean modification;
   }
 
+  /**
+   * DtO que representa al titular de la reserva.
+   */
   @Data
   public static class Holder {
 
@@ -53,6 +62,9 @@ public class HotelBookingApi {
     private String surname;
   }
 
+  /**
+   * DTO que representa un hotel.
+   */
   @Data
   public static class Hotel {
 
@@ -89,6 +101,9 @@ public class HotelBookingApi {
     private Supplier supplier;
   }
 
+  /**
+   * DTO que representa una habitación de hotel.
+   */
   @Data
   public static class Room {
 
@@ -105,6 +120,9 @@ public class HotelBookingApi {
     private List<Rate> rates;
   }
 
+  /**
+   * DTO que representa un pasajero.
+   */
   @Data
   public static class Pax {
 
@@ -117,6 +135,9 @@ public class HotelBookingApi {
     private String surname;
   }
 
+  /**
+   * DTO que representa una tarifa de hotel.
+   */
   @Data
   public static class Rate {
 
@@ -145,6 +166,9 @@ public class HotelBookingApi {
     private int children;
   }
 
+  /**
+   * DTO que representa la política de cancelación del hotel.
+   */
   @Data
   public static class CancellationPolicy {
 
@@ -153,12 +177,18 @@ public class HotelBookingApi {
     private String from;
   }
 
+  /**
+   * DTO que representa una lista de descuentos aplicados.
+   */
   @Data
   public static class RateBreakDown {
 
     private List<RateDiscount> rateDiscounts;
   }
 
+  /**
+   * DTO que representa un descuento.
+   */
   @Data
   public static class RateDiscount {
 
@@ -169,6 +199,9 @@ public class HotelBookingApi {
     private BigDecimal amount;
   }
 
+  /**
+   * DTO que representa al proveedor.
+   */
   @Data
   public static class Supplier {
 
@@ -177,6 +210,9 @@ public class HotelBookingApi {
     private String vatNumber;
   }
 
+  /**
+   * DTO que representa ula factura.
+   */
   @Data
   public static class InvoiceCompany {
 

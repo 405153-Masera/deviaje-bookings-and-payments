@@ -107,9 +107,7 @@ public class Booking {
    */
   public enum BookingStatus {
     CONFIRMED,
-    CANCELLED,
-    PAYMENT_FAILED,
-    PENDING_PAYMENT
+    CANCELLED
   }
 
   /**
