@@ -38,6 +38,8 @@ public class Booking {
   @Column(unique = true)
   private String bookingReference;
 
+  private String externalReference;
+
   private Integer clientId;
 
   private Integer agentId;
@@ -92,7 +94,9 @@ public class Booking {
   @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private List<Payment> payments;
 
-
+  /**
+   * Metodo que se activa antes de persistir en la base de datos.
+   */
   @PrePersist
   protected void onCreate() {
     this.createdDatetime = LocalDateTime.now();
@@ -103,7 +107,9 @@ public class Booking {
    */
   public enum BookingStatus {
     CONFIRMED,
-    CANCELLED
+    CANCELLED,
+    PAYMENT_FAILED,
+    PENDING_PAYMENT
   }
 
   /**

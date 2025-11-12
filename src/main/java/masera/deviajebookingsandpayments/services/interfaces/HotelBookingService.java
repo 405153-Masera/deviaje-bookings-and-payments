@@ -8,6 +8,7 @@ import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.payments.PricesDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse;
 import masera.deviajebookingsandpayments.dtos.responses.HotelBookingDetailsDto;
+import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.HotelBooking;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public interface HotelBookingService {
    *
    * @param bookingRequest datos de la reserva
    * @param paymentRequest datos del pago
+   * @param prices representa los detalles del precio
    * @return respuesta unificada con resultado de la operación
    */
   BookingReferenceResponse bookAndPay(CreateHotelBookingRequestDto bookingRequest,
@@ -73,5 +75,11 @@ public interface HotelBookingService {
 
   Integer countChildren(CreateHotelBookingRequestDto request);
 
+  /**
+   *  Convierte
+   *
+   * @param hotelBooking
+   * @return
+   */
   HotelBookingDetailsDto convertToHotelBookingResponse(HotelBooking hotelBooking);
 }

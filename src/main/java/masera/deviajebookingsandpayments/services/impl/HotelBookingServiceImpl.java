@@ -21,11 +21,13 @@ import masera.deviajebookingsandpayments.dtos.responses.HotelBookingDetailsDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.Booking;
 import masera.deviajebookingsandpayments.entities.HotelBooking;
+import masera.deviajebookingsandpayments.exceptions.HotelBedsApiException;
+import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.HotelBookingRepository;
+import masera.deviajebookingsandpayments.services.interfaces.BookingService;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
-import masera.deviajebookingsandpayments.services.interfaces.BookingService;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -52,6 +54,14 @@ public class HotelBookingServiceImpl implements HotelBookingService {
 
   private final ModelMapper modelMapper;
 
+  /**
+   * Procesa una reserva de hotel y su pago de forma unificada.
+   *
+   * @param bookingRequest datos de la reserva
+   * @param paymentRequest datos del pago
+   * @param prices representa los detalles del precio
+   * @return respuesta unificada con resultado de la operación
+   */
   @Override
   @Transactional
   public BookingReferenceResponse bookAndPay(CreateHotelBookingRequestDto bookingRequest,
@@ -63,15 +73,49 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     Map<String, Object> hotelBedsRequest = prepareHotelBedsBookingRequest(bookingRequest);
     HotelBookingResponse hotelBedsResponse = hotelClient.createBooking(hotelBedsRequest).block();
 
-    assert hotelBedsResponse != null;
-    Booking savedBooking = saveBookingInDatabase(bookingRequest,
-              prices, hotelBedsResponse.getBooking().getReference(),
-              hotelBedsResponse.getBooking());
+    if (hotelBedsResponse == null || hotelBedsResponse.getBooking() == null) {
+      throw new HotelBedsApiException("Respuesta inválida de HotelBeds al crear la reserva", 500);
+    }
+    String hotelBedsReference = hotelBedsResponse.getBooking().getReference();
 
-    log.info("Procesando pago para reserva de hotel");
-    PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
-    this.bookingService.updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
-    return  new BookingReferenceResponse(savedBooking.getBookingReference());
+    try {
+      Booking savedBooking = saveBookingInDatabase(
+              bookingRequest, prices, hotelBedsReference, hotelBedsResponse.getBooking()
+      );
+
+      log.info("Procesando pago para reserva de hotel");
+      PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
+      bookingService.updatePaymentWithBookingId(paymentResult.getId(), savedBooking.getId());
+      savedBooking.setStatus(Booking.BookingStatus.CONFIRMED);
+      bookingRepository.save(savedBooking);
+      return new BookingReferenceResponse(savedBooking.getBookingReference());
+
+    } catch (MercadoPagoException e) {
+      log.error("Error en pago. Guardando intento fallido y cancelando en HotelBeds: {}",
+              hotelBedsReference);
+
+      bookingService.saveFailedBookingAttempt(bookingRequest,
+              Booking.BookingType.HOTEL,
+              prices,
+              hotelBedsReference,
+              e.getMessage()
+      );
+      cancelInHotelBeds(hotelBedsReference);
+      throw e;
+    }
+  }
+
+  /**
+   * Cancela la reserva en HotelBeds.
+   */
+  private void cancelInHotelBeds(String hotelBedsReference) {
+    try {
+      hotelClient.cancelBooking(hotelBedsReference).block();
+      log.info("Reserva cancelada en HotelBeds: {}", hotelBedsReference);
+
+    } catch (Exception e) {
+      bookingService.handleCriticalCancellationError(hotelBedsReference, "HOTELBEDS", e);
+    }
   }
 
   @Override
@@ -94,11 +138,12 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   @Override
   public Object checkRates(String rateKey) {
     log.info("Verificando disponibilidad de tarifa: {}", rateKey);
-      return hotelClient.checkRates(rateKey).block();
+    return hotelClient.checkRates(rateKey).block();
   }
 
   /**
-   * Prepara la solicitud de creación de una reserva
+   * Prepara la solicitud de creación de una reserva.
+   *
    * @param request representa la solicitud
    * @return la solicitud
    */
@@ -127,11 +172,12 @@ public class HotelBookingServiceImpl implements HotelBookingService {
   }
 
   /**
-   * Llama a HotelBeds para crear la reserva con manejo de errores específico
+   * Llama a HotelBeds para crear la reserva con manejo de errores específico.
    */
   @Override
   public HotelBookingResponse callHotelBedsCreateBooking(Map<String, Object> hotelBedsRequest) {
-      return hotelClient.createBooking(hotelBedsRequest).block();
+
+    return hotelClient.createBooking(hotelBedsRequest).block();
   }
 
   /**
@@ -192,6 +238,15 @@ public class HotelBookingServiceImpl implements HotelBookingService {
     hotelBookingRepository.save(hotelBooking);
   }
 
+  /**
+   * Metodo que guarda la reserva de hoteles en la base de datos.
+   *
+   * @param request representa la petición de hotelbeds
+   * @param payment representa los detalles del precio
+   * @param externalId representa el id de hotelbeds
+   * @param hotelDetails representa la reserva de hotelbeds
+   * @return la reserva ya creada
+   */
   @Transactional
   @Override
   public Booking saveBookingInDatabase(CreateHotelBookingRequestDto request,
@@ -199,11 +254,10 @@ public class HotelBookingServiceImpl implements HotelBookingService {
                                        String externalId,
                                        HotelBookingApi hotelDetails) {
 
-    // 1. Crear booking principal
     Booking booking = Booking.builder()
             .clientId(request.getClientId())
             .agentId(request.getAgentId())
-            .status(Booking.BookingStatus.CONFIRMED)
+            .status(Booking.BookingStatus.PENDING_PAYMENT)
             .type(Booking.BookingType.HOTEL)
             .holderName(request.getHolder().getName() + request.getHolder().getSurname())
             .totalAmount(payment.getTotalAmount())
