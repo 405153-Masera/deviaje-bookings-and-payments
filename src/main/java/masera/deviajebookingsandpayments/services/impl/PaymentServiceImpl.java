@@ -49,8 +49,7 @@ public class PaymentServiceImpl implements PaymentService {
   }
 
   @Override
-  public PaymentResponseDto processPayment(
-          PaymentRequestDto paymentRequest, PaymentEntity.Type type) {
+  public PaymentResponseDto processPayment(PaymentRequestDto paymentRequest) {
     log.info("Procesando pago por {} {}", paymentRequest.getAmount(), paymentRequest.getCurrency());
 
     try {
@@ -110,7 +109,10 @@ public class PaymentServiceImpl implements PaymentService {
             .description(paymentRequest.getDescription() != null
                     ? paymentRequest.getDescription() : "Reserva en DeViaje")
             .installments(paymentRequest.getInstallments())
-            .paymentMethodId(paymentRequest.getPaymentMethod());
+            .paymentMethodId(paymentRequest.getPaymentMethod())
+            .externalReference(paymentRequest.getBookingId() != null
+                    ? paymentRequest.getBookingId().toString()
+                    : null);
 
     if (payerBuilder != null) {
       paymentBuilder.payer(payerBuilder.build());
@@ -244,7 +246,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     // Buscar todos los pagos de la reserva
     List<PaymentEntity> paymentEntities =
-            paymentRepository.findByBookingId(bookingId);
+            paymentRepository.findByBookingEntityId(bookingId);
 
     if (paymentEntities.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND,

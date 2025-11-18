@@ -14,13 +14,12 @@ import masera.deviajebookingsandpayments.dtos.responses.BookingReferenceResponse
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.BookingEntity;
-import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
+import masera.deviajebookingsandpayments.services.interfaces.BookingService;
 import masera.deviajebookingsandpayments.services.interfaces.FlightBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.HotelBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PackageBookingService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
-import masera.deviajebookingsandpayments.services.interfaces.BookingService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,23 +50,16 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
     log.info("Iniciando proceso de reserva y pago para paquete. Cliente: {}",
             bookingRequest.getClientId());
-
-    log.info("Creando reserva principal de paquete");
     BookingEntity packageBookingEntity = createPackageBooking(bookingRequest, prices);
 
     log.info("Creando reserva de vuelo para paquete");
     createFlightReservation(bookingRequest, packageBookingEntity, prices);
-
-    // 3. CREAR RESERVA DE HOTEL
     log.info("Creando reserva de hotel para paquete");
     createHotelReservation(bookingRequest, packageBookingEntity, prices);
 
-    // 4. PROCESAR PAGO
     log.info("Procesando pago para reserva de paquete");
-    PaymentResponseDto paymentResult = paymentService.processPayment(
-            paymentRequest, PaymentEntity.Type.PACKAGE);
-
-    // 5. ASOCIAR PAGO CON LA RESERVA
+    paymentRequest.setBookingId(packageBookingEntity.getId());
+    PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
     bookingService.updatePaymentWithBookingId(paymentResult.getId(), packageBookingEntity.getId());
 
     log.info("Reserva de paquete completada exitosamente. ID: {}", packageBookingEntity.getId());
@@ -78,7 +70,9 @@ public class PackageBookingServiceImpl implements PackageBookingService {
   public List<BookingResponseDto> getClientPackageBookings(Integer clientId) {
     log.info("Obteniendo reservas de paquetes para el cliente: {}", clientId);
 
-    List<BookingEntity> bookingEntities = bookingRepository.findByClientIdAndType(clientId, BookingEntity.BookingType.PACKAGE);
+    List<BookingEntity> bookingEntities = bookingRepository.findByClientIdAndType(
+            clientId, BookingEntity.BookingType.PACKAGE);
+
     return bookingEntities.stream()
             .map(flightBookingService::convertToBookingResponse)
             .collect(Collectors.toList());
@@ -89,7 +83,8 @@ public class PackageBookingServiceImpl implements PackageBookingService {
     log.info("Obteniendo detalles de reserva de paquete: {}", bookingId);
 
     Optional<BookingEntity> bookingOpt = bookingRepository.findById(bookingId);
-    if (bookingOpt.isEmpty() || !BookingEntity.BookingType.PACKAGE.equals(bookingOpt.get().getType())) {
+    if (bookingOpt.isEmpty()
+            || !BookingEntity.BookingType.PACKAGE.equals(bookingOpt.get().getType())) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Reserva de paquete no encontrada");
     }
 
@@ -103,7 +98,8 @@ public class PackageBookingServiceImpl implements PackageBookingService {
   /**
    * Crea la reserva principal del paquete.
    */
-  private BookingEntity createPackageBooking(CreatePackageBookingRequestDto request, PricesDto prices) {
+  private BookingEntity createPackageBooking(
+          CreatePackageBookingRequestDto request, PricesDto prices) {
 
     // Obtener email y teléfono del primer viajero del vuelo
     String email = request.getFlightBooking().getTravelers().getFirst()
@@ -130,7 +126,8 @@ public class PackageBookingServiceImpl implements PackageBookingService {
 
     BookingEntity savedBookingEntity = bookingRepository.save(bookingEntity);
 
-    String bookingReference = bookingService.generateBookingReference(savedBookingEntity.getId(), savedBookingEntity.getType());
+    String bookingReference = bookingService
+            .generateBookingReference(savedBookingEntity.getId(), savedBookingEntity.getType());
     savedBookingEntity.setBookingReference(bookingReference);
     return bookingRepository.save(savedBookingEntity);
   }

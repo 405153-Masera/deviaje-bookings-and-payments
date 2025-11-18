@@ -11,7 +11,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -71,10 +70,8 @@ public class FlightBookingEntity {
   @Column(length = 3)
   private String currency;
 
-  private LocalDate cancellationFrom;
-
-  @Builder.Default
-  private BigDecimal cancellationAmount = BigDecimal.ZERO;
+  @Column(columnDefinition = "JSON")
+  private String cancellationRules;
 
   private LocalDateTime createdDatetime;
 

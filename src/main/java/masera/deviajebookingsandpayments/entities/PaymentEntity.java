@@ -38,7 +38,6 @@ public class PaymentEntity {
   @JoinColumn(name = "booking_id")
   private BookingEntity bookingEntity;
 
-  @Enumerated(EnumType.STRING)
   @Column(length = 20)
   private String type;
 
@@ -84,15 +83,5 @@ public class PaymentEntity {
     REJECTED,
     CANCELLED,
     REFUNDED
-  }
-
-  /**
-   * Enum para estados de pago.
-   */
-  public enum Type {
-    HOTEL,
-    FLIGHT,
-    PACKAGE,
-    MEMBERSHIP,
   }
 }

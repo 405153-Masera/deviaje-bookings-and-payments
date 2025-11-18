@@ -9,6 +9,7 @@ import lombok.Getter;
 public class AmadeusApiException extends  RuntimeException {
 
   private final int statusCode;
+  private final int internalCode;
 
   /**
    * Constructor de la clase.
@@ -16,8 +17,9 @@ public class AmadeusApiException extends  RuntimeException {
    * @param message Mensaje de error.
    * @param statusCode Código de estado HTTP.
    */
-  public AmadeusApiException(String message, int statusCode) {
+  public AmadeusApiException(String message, int statusCode, int internalCode) {
     super(message);
     this.statusCode = statusCode;
+    this.internalCode = internalCode;
   }
 }

@@ -44,6 +44,7 @@ public class ControllerException {
     log.error("Error en Amadeus API: {} - Status: {}", e.getMessage(), e.getStatusCode());
     HttpStatus status = HttpStatus.valueOf(e.getStatusCode());
     ErrorApi error = buildError(e.getMessage(), status, "AMADEUS");
+    error.setCodeErrorApi(String.valueOf(e.getInternalCode()));
     return ResponseEntity.status(status).body(error);
   }
 

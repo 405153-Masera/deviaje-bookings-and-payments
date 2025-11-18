@@ -40,16 +40,13 @@ public class AmadeusTokenServiceImpl implements AmadeusTokenService {
     log.info("Solicitando nuevo token de Amadeus");
 
     try {
-      // se coloca block() para esperar la respuesta
+
       AmadeusTokenResponse response = amadeusAuthClient.getAmadeusToken().block();
 
       if (response != null && response.getAccessToken() != null) {
         currentToken = response.getAccessToken();
-
         // Se le resta 60 segundos a la expiración para evitar que expire mientras se usa
         tokenExpiration = LocalDateTime.now().plusSeconds(response.getExpiresIn() - 60);
-
-        log.info("Token de Amadeus obtenido, válido hasta: {}", tokenExpiration);
         return currentToken;
       } else {
         throw new RuntimeException("No se pudo obtener el token de Amadeus");

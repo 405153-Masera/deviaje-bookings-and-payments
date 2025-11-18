@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.exceptions.AmadeusApiException;
@@ -14,8 +15,6 @@ import masera.deviajebookingsandpayments.utils.dtos.AmadeusError;
 import masera.deviajebookingsandpayments.utils.dtos.AmadeusErrorResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-
-import java.util.List;
 
 /**
  * Clase para manejar errores de Amadeus.
@@ -50,8 +49,9 @@ public class ErrorHandler {
           int status = amadeusError.getStatus() != null
                   ? amadeusError.getStatus() : e.getStatusCode().value();
           String message = getString(amadeusError);
+          int internalCode = amadeusError.getCode();
 
-          return new AmadeusApiException(message, status);
+          return new AmadeusApiException(message, status, internalCode);
         }
       }
     } catch (JsonProcessingException ex) {
@@ -60,7 +60,7 @@ public class ErrorHandler {
     
     return new AmadeusApiException(
             "Error al comunicarse con Amadeus: " + e.getStatusText(),
-            e.getStatusCode().value());
+            e.getStatusCode().value(), 0);
   }
 
   /**
@@ -122,7 +122,8 @@ public class ErrorHandler {
    */
   public MercadoPagoException handleMercadoPagoError(MPApiException e) {
 
-    log.error("Error de MercadoPago API - Status: {}, Message: {}", e.getStatusCode(), e.getMessage());
+    log.error("Error de MercadoPago API - Status: {}, Message: {}",
+            e.getStatusCode(), e.getMessage());
 
     try {
 

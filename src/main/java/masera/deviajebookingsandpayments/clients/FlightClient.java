@@ -49,7 +49,8 @@ public class FlightClient {
     );
 
     String token = amadeusTokenService.getToken();
-    String uri = amadeusConfig.getBaseUrl() + FLIGHT_OFFERS_PRICING_URL;
+    String uri = amadeusConfig.getBaseUrl() + FLIGHT_OFFERS_PRICING_URL
+            + "?include=detailed-fare-rules";
 
     return webClient.post()
             .uri(uri)

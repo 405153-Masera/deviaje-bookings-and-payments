@@ -36,7 +36,7 @@ public interface FlightBookingRepository extends JpaRepository<FlightBookingEnti
    * @param bookingId ID de la reserva principal
    * @return Lista de reservas de vuelo
    */
-  List<FlightBookingEntity> findByBookingId(Long bookingId);
+  List<FlightBookingEntity> findByBookingEntityId(Long bookingId);
 
   /**
    * Encuentra reservas de vuelo por fecha de salida.

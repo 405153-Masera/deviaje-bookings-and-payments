@@ -23,7 +23,6 @@ import masera.deviajebookingsandpayments.dtos.responses.HotelBookingDetailsDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.BookingEntity;
 import masera.deviajebookingsandpayments.entities.HotelBookingEntity;
-import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import masera.deviajebookingsandpayments.exceptions.HotelBedsApiException;
 import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
@@ -89,8 +88,9 @@ public class HotelBookingServiceImpl implements HotelBookingService {
       );
 
       log.info("Procesando pago para reserva de hotel");
-      PaymentResponseDto paymentResult = paymentService.processPayment(
-              paymentRequest, PaymentEntity.Type.HOTEL);
+      paymentRequest.setBookingId(savedBookingEntity.getId());
+      PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
+
       bookingService.updatePaymentWithBookingId(paymentResult.getId(), savedBookingEntity.getId());
       return new BookingReferenceResponse(savedBookingEntity.getBookingReference());
 
@@ -219,7 +219,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
                                        HotelBookingApi hotelDetails) {
 
     LocalDate checkIn = LocalDate.parse(hotelDetails.getHotel().getCheckIn());
-    LocalDate checkOut = LocalDate.parse(hotelDetails.getHotel().getCheckIn());
+    LocalDate checkOut = LocalDate.parse(hotelDetails.getHotel().getCheckOut());
 
     HotelBookingEntity hotelBookingEntity = HotelBookingEntity.builder()
             .bookingEntity(bookingEntity)

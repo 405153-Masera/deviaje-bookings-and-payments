@@ -15,7 +15,6 @@ import masera.deviajebookingsandpayments.dtos.responses.FlightBookingDetailsDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.BookingEntity;
 import masera.deviajebookingsandpayments.entities.FlightBookingEntity;
-import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.FlightBookingRepository;
 import masera.deviajebookingsandpayments.services.interfaces.BookingService;
@@ -65,15 +64,13 @@ public class FlightBookingServiceImpl implements FlightBookingService {
     BookingEntity savedBookingEntity = saveBookingInDatabase(bookingRequest,
             flightOffer, prices, externalId);
 
-    // 4. Procesar pago PRIMERO
     log.info("Procesando pago para reserva de vuelo");
-    PaymentResponseDto paymentResult = paymentService.processPayment(
-            paymentRequest, PaymentEntity.Type.FLIGHT);
+    paymentRequest.setBookingId(savedBookingEntity.getId());
+    PaymentResponseDto paymentResult = paymentService.processPayment(paymentRequest);
 
     this.bookingService.updatePaymentWithBookingId(
             paymentResult.getId(), savedBookingEntity.getId());
 
-    log.info("Reserva de vuelo completada exitosamente. ID: {}", savedBookingEntity.getId());
     return new BookingReferenceResponse(savedBookingEntity.getBookingReference());
   }
 
@@ -157,11 +154,12 @@ public class FlightBookingServiceImpl implements FlightBookingService {
                                         BookingEntity bookingEntity,
                                         String externalId,
                                         PricesDto prices) {
-
+    ObjectMapper mapper = new ObjectMapper();
     String itinerariesJson = null;
+    String cancellationRules = null;
     try {
-      ObjectMapper mapper = new ObjectMapper();
       itinerariesJson = mapper.writeValueAsString(flightOffer.getItineraries());
+      cancellationRules = mapper.writeValueAsString(request.getCancellationRules());
     } catch (Exception e) {
       log.warn("Error al convertir itinerarios a JSON: {}", e.getMessage());
     }
@@ -178,11 +176,10 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .children(countChildren(request))
             .infants(countInfants(request))
             .itineraries(itinerariesJson)
+            .cancellationRules(cancellationRules)
             .totalPrice(prices.getGrandTotal())
             .taxes(prices.getTaxesFlight())
             .currency(prices.getCurrency())
-            .cancellationFrom(request.getCancellationFrom())
-            .cancellationAmount(request.getCancellationAmount())
             .build();
 
     flightBookingRepository.save(flightBookingEntity);

@@ -2,23 +2,21 @@ package masera.deviajebookingsandpayments.services.interfaces;
 
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
-import masera.deviajebookingsandpayments.entities.PaymentEntity;
-
+import org.springframework.stereotype.Service;
 
 /**
  * Interfaz para el servicio de pagos.
  */
+@Service
 public interface PaymentService {
 
   /**
    * Procesa un nuevo pago.
    *
    * @param paymentRequest datos del pago a procesar
-   * @param type tipo de pago, hotel, vuelo, paquete, membresía
    * @return resultado del procesamiento del pago
    */
-  PaymentResponseDto processPayment(
-          PaymentRequestDto paymentRequest, PaymentEntity.Type type);
+  PaymentResponseDto processPayment(PaymentRequestDto paymentRequest);
 
   /**
    * Reembolsa un pago existente.

@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 
 
 /**
- * DTO para procesar pago (Forma B - Backend directo).
+ * DTO para procesar pago.
  */
 @Data
 @NoArgsConstructor
@@ -31,13 +31,13 @@ public class PaymentRequestDto {
   private String currency;
 
   @NotBlank(message = "El método de pago es obligatorio")
-  private String paymentMethod; // "mercado_pago", "credit_card", etc.
+  private String paymentMethod;
 
   @Builder.Default
-  private String type = "BOOKING";
+  private String type = "HOTEL";
 
   @NotBlank(message = "El token de pago es obligatorio")
-  private String paymentToken; // Token seguro de MP o tarjeta
+  private String paymentToken;
 
   @Min(value = 1, message = "Las cuotas deben ser mínimo 1")
   @Max(value = 24, message = "Las cuotas no pueden ser más de 24")
@@ -45,10 +45,10 @@ public class PaymentRequestDto {
 
   private String description;
 
-  // Datos adicionales para Mercado Pago
   private PayerDto payer;
 
   // id del emisor de la tarjeta (opcional)
   private String issuerId;
-}
 
+  private Long bookingId;
+}

@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -82,16 +83,24 @@ public class BookingEntity {
   @Column(length = 100)
   private String email;
 
+  @Lob
+  @Column(columnDefinition = "LONGBLOB")
+  private byte[] voucher;
+
+  @Column(name = "is_sent")
+  @Builder.Default
+  private Boolean isSent = false;
+
   private LocalDateTime createdDatetime;
 
   // Relaciones
-  @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  @OneToMany(mappedBy = "bookingEntity", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private List<FlightBookingEntity> flightBookingEntities;
 
-  @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  @OneToMany(mappedBy = "bookingEntity", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private List<HotelBookingEntity> hotelBookingEntities;
 
-  @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  @OneToMany(mappedBy = "bookingEntity", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private List<PaymentEntity> paymentEntities;
 
   /**

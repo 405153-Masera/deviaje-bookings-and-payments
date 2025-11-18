@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.configs.PagoConfig;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
-import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,8 +42,7 @@ public class PaymentController {
             paymentRequest.getAmount(),
             paymentRequest.getCurrency());
 
-    PaymentResponseDto response = paymentService.processPayment(
-            paymentRequest, PaymentEntity.Type.MEMBERSHIP);
+    PaymentResponseDto response = paymentService.processPayment(paymentRequest);
     return ResponseEntity.ok(response);
   }
 

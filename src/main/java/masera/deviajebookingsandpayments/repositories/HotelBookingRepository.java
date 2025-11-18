@@ -28,7 +28,7 @@ public interface HotelBookingRepository extends JpaRepository<HotelBookingEntity
    * @param bookingId ID de la reserva principal
    * @return Lista de reservas de hotel
    */
-  List<HotelBookingEntity> findByBookingId(Long bookingId);
+  List<HotelBookingEntity> findByBookingEntityId(Long bookingId);
 
   /**
    * Encuentra reservas de hoteles por fecha de check-in.
