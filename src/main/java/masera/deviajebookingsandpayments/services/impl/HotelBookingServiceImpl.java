@@ -268,7 +268,8 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .agentId(request.getAgentId())
             .status(BookingEntity.BookingStatus.CONFIRMED)
             .type(BookingEntity.BookingType.HOTEL)
-            .holderName(request.getHolder().getName() + request.getHolder().getSurname())
+            .holderName(request.getHolder().getName() + ", "
+                    + request.getHolder().getSurname())
             .totalAmount(payment.getTotalAmount())
             .commission(payment.getCommission())
             .discount(payment.getDiscount())

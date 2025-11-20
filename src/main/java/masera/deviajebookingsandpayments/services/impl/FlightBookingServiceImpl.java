@@ -156,10 +156,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
                                         PricesDto prices) {
     ObjectMapper mapper = new ObjectMapper();
     String itinerariesJson = null;
-    String cancellationRules = null;
     try {
       itinerariesJson = mapper.writeValueAsString(flightOffer.getItineraries());
-      cancellationRules = mapper.writeValueAsString(request.getCancellationRules());
     } catch (Exception e) {
       log.warn("Error al convertir itinerarios a JSON: {}", e.getMessage());
     }
@@ -176,7 +174,6 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .children(countChildren(request))
             .infants(countInfants(request))
             .itineraries(itinerariesJson)
-            .cancellationRules(cancellationRules)
             .totalPrice(prices.getGrandTotal())
             .taxes(prices.getTaxesFlight())
             .currency(prices.getCurrency())

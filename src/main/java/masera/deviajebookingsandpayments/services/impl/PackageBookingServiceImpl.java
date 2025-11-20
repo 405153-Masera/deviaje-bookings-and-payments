@@ -108,6 +108,9 @@ public class PackageBookingServiceImpl implements PackageBookingService {
             .getContact().getPhones().getFirst().getNumber();
     String countryCallingCode = request.getFlightBooking().getTravelers().getFirst()
             .getContact().getPhones().getFirst().getCountryCallingCode();
+    String holderName = request.getFlightBooking()
+            .getTravelers().getFirst().getName().getFirstName()
+            + ", " + request.getFlightBooking().getTravelers().getFirst().getName().getLastName();
 
     BookingEntity bookingEntity = BookingEntity.builder()
             .clientId(request.getClientId())
@@ -121,6 +124,7 @@ public class PackageBookingServiceImpl implements PackageBookingService {
             .currency(prices.getCurrency())
             .email(email)
             .phone(phone)
+            .holderName(holderName)
             .countryCallingCode(countryCallingCode)
             .build();
 

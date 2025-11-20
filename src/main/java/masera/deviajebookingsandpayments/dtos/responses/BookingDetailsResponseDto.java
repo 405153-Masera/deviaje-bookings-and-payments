@@ -1,5 +1,6 @@
 package masera.deviajebookingsandpayments.dtos.responses;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -9,17 +10,19 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * DTO de respuesta para detalles completos de reserva con relaciones.
+ * DTO para respuesta con detalles completos de una reserva.
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class BookingDetailsResponseDto {
 
   private Long id;
 
   private String bookingReference;
+
+  private String externalReference;
 
   private Integer clientId;
 
@@ -41,13 +44,123 @@ public class BookingDetailsResponseDto {
 
   private String holderName;
 
+  private String countryCallingCode;
+
   private String phone;
 
   private String email;
 
   private LocalDateTime createdDatetime;
 
-  private List<FlightBookingDetailsDto> flightBookings;
+  private FlightBookingDetails flightDetails;
 
-  private List<HotelBookingDetailsDto> hotelBookings;
+  private HotelBookingDetails hotelDetails;
+
+  private List<PaymentInfo> payments;
+
+  /**
+   * Detalles de reserva de vuelo.
+   */
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class FlightBookingDetails {
+
+    private String externalId;
+
+    private String origin;
+
+    private String destination;
+
+    private String carrier;
+
+    private String departureDate;
+
+    private String arrivalDate;
+
+    private Integer adults;
+
+    private Integer children;
+
+    private Integer infants;
+
+    private BigDecimal totalPrice;
+
+    private String currency;
+
+    private JsonNode flightBookingJson;
+
+    private String cancellationPolicy;
+
+    private JsonNode cancellationRulesJson;
+  }
+
+  /**
+   * Detalles de reserva de hotel.
+   */
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class HotelBookingDetails {
+
+    private String externalId;
+
+    private String hotelName;
+
+    private String destinationName;
+
+    private String countryName;
+
+    private String roomName;
+
+    private String boardName;
+
+    private String checkInDate;
+
+    private String checkOutDate;
+
+    private Integer numberOfNights;
+
+    private Integer numberOfRooms;
+
+    private Integer adults;
+
+    private Integer children;
+
+    private BigDecimal totalPrice;
+
+    private BigDecimal taxes;
+
+    private String currency;
+
+    private JsonNode hotelBookingJson;
+  }
+
+  /**
+   * Información de pago.
+   */
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class PaymentInfo {
+
+    private Long id;
+
+    private String paymentType;
+
+    private String paymentMethod;
+
+    private BigDecimal amount;
+
+    private String currency;
+
+    private String status;
+
+    private Long externalId;
+
+    private LocalDateTime createdDatetime;
+  }
 }

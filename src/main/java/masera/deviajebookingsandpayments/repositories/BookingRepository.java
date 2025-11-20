@@ -31,14 +31,22 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
   List<BookingEntity> findByClientIdAndType(Integer clientId, BookingEntity.BookingType type);
 
   /**
+   * Encuentra reservas por ID de cliente y ID del agente.
+   *
+   *
+   * @param agentId ID del agente
+   * @param clientId ID del cliente
+   * @return Lista de reservas del cliente del tipo especificado
+   */
+  List<BookingEntity> findByAgentIdAndClientId(Integer agentId, Integer clientId);
+
+  /**
    * Encuentra reservas por ID de agente.
    *
    * @param agentId ID del agente
    * @return Lista de reservas del agente
    */
   List<BookingEntity> findByAgentId(Integer agentId);
-
-  // Agregar este método al BookingRepository existente
 
   /**
    * Encuentra reservas por estado.

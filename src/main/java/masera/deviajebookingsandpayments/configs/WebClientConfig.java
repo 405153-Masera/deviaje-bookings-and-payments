@@ -24,8 +24,8 @@ import reactor.netty.http.client.HttpClient;
 public class WebClientConfig {
 
   private static final int CONNECT_TIMEOUT = 5000;
-  private static final int READ_TIMEOUT = 10000;
-  private static final int WRITE_TIMEOUT = 5000;
+  private static final int READ_TIMEOUT = 60000;
+  private static final int WRITE_TIMEOUT = 10000;
   //private static final int MAX_IN_MEMORY_SIZE = 16 * 1024 * 1024; // 16MB
   private static final int MAX_IN_MEMORY_SIZE = 200 * 1024 * 1024;
 

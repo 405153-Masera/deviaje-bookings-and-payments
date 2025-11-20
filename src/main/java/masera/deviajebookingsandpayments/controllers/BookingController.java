@@ -1,18 +1,21 @@
 package masera.deviajebookingsandpayments.controllers;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import masera.deviajebookingsandpayments.dtos.responses.BookingDetailsResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
-import masera.deviajebookingsandpayments.entities.BookingEntity;
-import masera.deviajebookingsandpayments.repositories.BookingRepository;
-import org.modelmapper.ModelMapper;
+import masera.deviajebookingsandpayments.dtos.responses.CancellationResponseDto;
+import masera.deviajebookingsandpayments.services.interfaces.BookingService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -24,160 +27,135 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class BookingController {
 
-  private final BookingRepository bookingRepository;
-  private final ModelMapper modelMapper;
+  private final BookingService bookingService;
 
   /**
-   * Obtiene todas las reservas de un cliente.
-   *
-   * @param clientId ID del cliente
-   * @return lista de reservas
+   * Obtiene todas las reservas de un cliente con filtros opcionales.
    */
   @GetMapping("/client/{clientId}")
   public ResponseEntity<List<BookingResponseDto>> getClientBookings(
-          @PathVariable Integer clientId) {
-    log.info("Obteniendo reservas para el cliente: {}", clientId);
+          @PathVariable Integer clientId,
+          @RequestParam(required = false) String email,
+          @RequestParam(required = false) String holderName) {
 
-    try {
-      List<BookingEntity> bookingEntities = bookingRepository.findByClientId(clientId);
-      List<BookingResponseDto> response = bookingEntities.stream()
-              .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
-              .collect(Collectors.toList());
+    List<BookingResponseDto> bookings = bookingService.getClientBookings(
+            clientId, email, holderName);
 
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
-      log.error("Error al obtener reservas del cliente", e);
-      return ResponseEntity.internalServerError().build();
-    }
+    return ResponseEntity.ok(bookings);
   }
 
   /**
-   * Obtiene una reserva específica.
-   *
-   * @param id ID de la reserva
-   * @return detalles de la reserva
+   * Obtiene el historial de reservas de un agente con filtros opcionales.
+   */
+  @GetMapping("/agent/{agentId}")
+  public ResponseEntity<List<BookingResponseDto>> getAgentBookings(
+          @PathVariable Integer agentId,
+          @RequestParam(required = false) Integer clientId,
+          @RequestParam(required = false) String email,
+          @RequestParam(required = false) String holderName) {
+
+    List<BookingResponseDto> bookings = bookingService.getAgentBookings(
+            agentId, clientId, email, holderName);
+
+    return ResponseEntity.ok(bookings);
+  }
+
+  /**
+   * Obtiene todas las reservas (solo administradores) con filtros opcionales.
+   */
+  @GetMapping("/admin/all")
+  public ResponseEntity<List<BookingResponseDto>> getAllBookings(
+          @RequestParam(required = false) Integer agentId,
+          @RequestParam(required = false) Integer clientId,
+          @RequestParam(required = false) String email,
+          @RequestParam(required = false) String holderName) {
+
+    List<BookingResponseDto> bookings = bookingService.getAllBookings(
+            agentId, clientId, email, holderName);
+
+    return ResponseEntity.ok(bookings);
+  }
+
+  /**
+   * Obtiene una reserva específica (resumen).
    */
   @GetMapping("/{id}")
   public ResponseEntity<BookingResponseDto> getBooking(@PathVariable Long id) {
-    log.info("Obteniendo detalles de la reserva: {}", id);
+    log.info("GET /bookings/{}", id);
 
-    try {
-      Optional<BookingEntity> bookingOpt = bookingRepository.findById(id);
-      if (bookingOpt.isEmpty()) {
-        return ResponseEntity.notFound().build();
-      }
-
-      BookingResponseDto response = modelMapper.map(bookingOpt.get(), BookingResponseDto.class);
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
-      log.error("Error al obtener reserva", e);
-      return ResponseEntity.internalServerError().build();
-    }
+    BookingResponseDto booking = bookingService.getBookingById(id);
+    return ResponseEntity.ok(booking);
   }
 
-  // Agregar este método al BookingController existente
+ /*
+   * Obtiene los detalles completos de una reserva (incluyendo datos del JSON).
+   *
+  @GetMapping("/{bookingId}/details")
+  public ResponseEntity<BookingDetailsResponseDto> getBookingDetails(
+          @PathVariable Long bookingId) {
+
+    BookingDetailsResponseDto details = bookingService.getBookingDetails(bookingId);
+    return ResponseEntity.ok(details);
+  }*/
 
   /**
-   * Obtiene todas las reservas (solo para administradores).
-   *
-   * @return lista de todas las reservas
+   * Descarga el voucher de una reserva en formato PDF.
    */
-  @GetMapping("/admin/all")
-  public ResponseEntity<List<BookingResponseDto>> getAllBookings() {
-    log.info("Obteniendo todas las reservas (administrador)");
+  @GetMapping("/{bookingId}/voucher/download")
+  public ResponseEntity<byte[]> downloadVoucher(@PathVariable Long bookingId) {
+    log.info("GET /bookings/{}/voucher/download", bookingId);
 
-    try {
-      List<BookingEntity> bookingEntities = bookingRepository.findAll();
-      List<BookingResponseDto> response = bookingEntities.stream()
-              .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
-              .collect(Collectors.toList());
+    byte[] voucherPdf = bookingService.downloadVoucher(bookingId);
+    String bookingReference = bookingService.getBookingReference(bookingId);
 
-      log.info("Se encontraron {} reservas", response.size());
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
-      log.error("Error al obtener todas las reservas", e);
-      return ResponseEntity.internalServerError().build();
-    }
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_PDF);
+    headers.setContentDispositionFormData("attachment",
+            "voucher-" + bookingReference + ".pdf");
+
+    return ResponseEntity.ok()
+            .headers(headers)
+            .body(voucherPdf);
   }
 
   /**
-   * Obtiene reservas filtradas por estado.
-   *
-   * @param status estado de la reserva (PENDING, CONFIRMED, CANCELLED, COMPLETED)
-   * @return lista de reservas
+   * Reenvía el voucher por email.
    */
-  @GetMapping("/admin/status/{status}")
-  public ResponseEntity<List<BookingResponseDto>> getBookingsByStatus(@PathVariable String status) {
-    log.info("Obteniendo reservas con estado: {}", status);
+  @PostMapping("/{bookingId}/voucher/resend")
+  public ResponseEntity<String> resendVoucher(@PathVariable Long bookingId) {
+    log.info("POST /bookings/{}/voucher/resend", bookingId);
 
-    try {
-      BookingEntity.BookingStatus bookingStatus = BookingEntity.BookingStatus.valueOf(status.toUpperCase());
-      List<BookingEntity> bookingEntities = bookingRepository.findByStatus(bookingStatus);
-      List<BookingResponseDto> response = bookingEntities.stream()
-              .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
-              .collect(Collectors.toList());
+    String result = bookingService.resendVoucher(bookingId);
 
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException e) {
-      log.error("Estado de reserva inválido: {}", status);
-      return ResponseEntity.badRequest().build();
-    } catch (Exception e) {
-      log.error("Error al obtener reservas por estado", e);
-      return ResponseEntity.internalServerError().build();
-    }
+    return ResponseEntity.ok(result);
   }
 
   /**
-   * Obtiene el historial de reservas de un agente.
-   *
-   * @param agentId ID del agente
-   * @return lista de reservas
+   * Obtiene la información de cancelación (política y monto de reembolso).
    */
-  @GetMapping("/agent/{agentId}")
-  public ResponseEntity<List<BookingResponseDto>> getAgentBookings(@PathVariable Integer agentId) {
-    log.info("Obteniendo reservas para el agente: {}", agentId);
+  @GetMapping("/{bookingId}/cancellation-info")
+  public ResponseEntity<CancellationResponseDto> getCancellationInfo(
+          @PathVariable Long bookingId) {
 
-    try {
-      List<BookingEntity> bookingEntities = bookingRepository.findByAgentId(agentId);
-      List<BookingResponseDto> response = bookingEntities.stream()
-              .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
-              .collect(Collectors.toList());
+    log.info("GET /bookings/{}/cancellation-info", bookingId);
 
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
-      log.error("Error al obtener reservas del agente", e);
-      return ResponseEntity.internalServerError().build();
-    }
+    CancellationResponseDto info = bookingService.getCancellationInfo(bookingId);
+
+    return ResponseEntity.ok(info);
   }
 
   /**
-   * Obtiene reservas filtradas por tipo.
-   *
-   * @param clientId ID del cliente
-   * @param type tipo de reserva (FLIGHT, HOTEL, PACKAGE)
-   * @return lista de reservas
+   * Cancela una reserva y procesa el reembolso si corresponde.
    */
-  @GetMapping("/client/{clientId}/type/{type}")
-  public ResponseEntity<List<BookingResponseDto>> getClientBookingsByType(
-          @PathVariable Integer clientId,
-          @PathVariable String type) {
+  @PostMapping("/{bookingId}/cancel")
+  public ResponseEntity<CancellationResponseDto> cancelBooking(
+          @PathVariable Long bookingId,
+          @RequestBody CancelBookingRequestDto request) {
 
-    log.info("Obteniendo reservas de tipo {} para el cliente: {}", type, clientId);
+    log.info("POST /bookings/{}/cancel", bookingId);
 
-    try {
-      BookingEntity.BookingType bookingType = BookingEntity.BookingType.valueOf(type.toUpperCase());
-      List<BookingEntity> bookingEntities = bookingRepository.findByClientIdAndType(clientId, bookingType);
-      List<BookingResponseDto> response = bookingEntities.stream()
-              .map(booking -> modelMapper.map(booking, BookingResponseDto.class))
-              .collect(Collectors.toList());
+    CancellationResponseDto response = bookingService.cancelBooking(bookingId, request);
 
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException e) {
-      log.error("Tipo de reserva inválido: {}", type);
-      return ResponseEntity.badRequest().build();
-    } catch (Exception e) {
-      log.error("Error al obtener reservas del cliente por tipo", e);
-      return ResponseEntity.internalServerError().build();
-    }
+    return ResponseEntity.ok(response);
   }
 }
