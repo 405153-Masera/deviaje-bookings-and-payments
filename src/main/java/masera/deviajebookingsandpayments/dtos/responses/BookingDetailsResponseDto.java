@@ -2,6 +2,7 @@ package masera.deviajebookingsandpayments.dtos.responses;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -89,11 +90,7 @@ public class BookingDetailsResponseDto {
 
     private String currency;
 
-    private JsonNode flightBookingJson;
-
-    private String cancellationPolicy;
-
-    private JsonNode cancellationRulesJson;
+    private JsonNode itinerariesJson;
   }
 
   /**
@@ -117,9 +114,9 @@ public class BookingDetailsResponseDto {
 
     private String boardName;
 
-    private String checkInDate;
+    private LocalDate checkInDate;
 
-    private String checkOutDate;
+    private LocalDate checkOutDate;
 
     private Integer numberOfNights;
 

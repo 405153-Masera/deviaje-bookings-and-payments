@@ -87,16 +87,16 @@ public class BookingController {
     return ResponseEntity.ok(booking);
   }
 
- /*
+  /**
    * Obtiene los detalles completos de una reserva (incluyendo datos del JSON).
-   *
+   */
   @GetMapping("/{bookingId}/details")
   public ResponseEntity<BookingDetailsResponseDto> getBookingDetails(
           @PathVariable Long bookingId) {
 
     BookingDetailsResponseDto details = bookingService.getBookingDetails(bookingId);
     return ResponseEntity.ok(details);
-  }*/
+  }
 
   /**
    * Descarga el voucher de una reserva en formato PDF.
@@ -117,10 +117,10 @@ public class BookingController {
             .headers(headers)
             .body(voucherPdf);
   }
-
+/*
   /**
    * Reenvía el voucher por email.
-   */
+   *
   @PostMapping("/{bookingId}/voucher/resend")
   public ResponseEntity<String> resendVoucher(@PathVariable Long bookingId) {
     log.info("POST /bookings/{}/voucher/resend", bookingId);
@@ -132,7 +132,7 @@ public class BookingController {
 
   /**
    * Obtiene la información de cancelación (política y monto de reembolso).
-   */
+   *
   @GetMapping("/{bookingId}/cancellation-info")
   public ResponseEntity<CancellationResponseDto> getCancellationInfo(
           @PathVariable Long bookingId) {
@@ -146,7 +146,7 @@ public class BookingController {
 
   /**
    * Cancela una reserva y procesa el reembolso si corresponde.
-   */
+   *
   @PostMapping("/{bookingId}/cancel")
   public ResponseEntity<CancellationResponseDto> cancelBooking(
           @PathVariable Long bookingId,
@@ -157,5 +157,5 @@ public class BookingController {
     CancellationResponseDto response = bookingService.cancelBooking(bookingId, request);
 
     return ResponseEntity.ok(response);
-  }
+  }*/
 }

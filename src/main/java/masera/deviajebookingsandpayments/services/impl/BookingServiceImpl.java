@@ -2,10 +2,15 @@ package masera.deviajebookingsandpayments.services.impl;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import masera.deviajebookingsandpayments.dtos.responses.BookingDetailsResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.entities.BookingEntity;
+import masera.deviajebookingsandpayments.entities.FlightBookingEntity;
+import masera.deviajebookingsandpayments.entities.HotelBookingEntity;
 import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
@@ -15,6 +20,7 @@ import masera.deviajebookingsandpayments.services.interfaces.VoucherService;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -109,13 +115,98 @@ public class BookingServiceImpl implements BookingService {
     return convertToDto(booking);
   }
 
-  /*@Override
+  @Override
+  @Transactional(readOnly = true)
   public BookingDetailsResponseDto getBookingDetails(Long bookingId) {
-    log.info("Obteniendo detalles completos de reserva: {}", bookingId);
+    log.info("Obteniendo detalles completos de la reserva con ID: {}", bookingId);
 
-    BookingEntity booking = findBookingById(bookingId);
-    return getBookingDetails(booking);
-  }*/
+    BookingEntity booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new EntityNotFoundException(
+                    "Reserva no encontrada con ID: " + bookingId));
+
+    BookingDetailsResponseDto response = BookingDetailsResponseDto.builder()
+            .id(booking.getId())
+            .bookingReference(booking.getBookingReference())
+            .clientId(booking.getClientId())
+            .agentId(booking.getAgentId())
+            .status(booking.getStatus().name())
+            .type(booking.getType().name())
+            .totalAmount(booking.getTotalAmount())
+            .commission(booking.getCommission())
+            .discount(booking.getDiscount())
+            .taxes(booking.getTaxes())
+            .currency(booking.getCurrency())
+            .holderName(booking.getHolderName())
+            .countryCallingCode(booking.getCountryCallingCode())
+            .phone(booking.getPhone())
+            .email(booking.getEmail())
+            .createdDatetime(booking.getCreatedDatetime())
+            .build();
+
+    // Agregar detalles específicos según el tipo
+    switch (booking.getType()) {
+      case FLIGHT:
+        response.setFlightDetails(buildFlightDetails(booking));
+        break;
+      case HOTEL:
+        response.setHotelDetails(buildHotelDetails(booking));
+        break;
+      case PACKAGE:
+        response.setFlightDetails(buildFlightDetails(booking));
+        response.setHotelDetails(buildHotelDetails(booking));
+        break;
+      default:
+        throw new IllegalStateException("Tipo de reserva no soportado: " + booking.getType());
+    }
+
+    log.info("Detalles de la reserva {} obtenidos exitosamente", bookingId);
+    return response;
+  }
+  /**
+   * Construye los detalles de una reserva de vuelo.
+   */
+  private BookingDetailsResponseDto.FlightBookingDetails buildFlightDetails(BookingEntity booking) {
+    FlightBookingEntity flightBooking = booking.getFlightBookingEntities().getFirst();
+
+    return BookingDetailsResponseDto.FlightBookingDetails.builder()
+            .externalId(flightBooking.getExternalId())
+            .origin(flightBooking.getOrigin())
+            .destination(flightBooking.getDestination())
+            .carrier(flightBooking.getCarrier())
+            .departureDate(flightBooking.getDepartureDate())
+            .arrivalDate(flightBooking.getReturnDate())
+            .adults(flightBooking.getAdults())
+            .children(flightBooking.getChildren())
+            .infants(flightBooking.getInfants())
+            .totalPrice(flightBooking.getTotalPrice())
+            .currency(flightBooking.getCurrency())
+            .build();
+  }
+
+  /**
+   * Construye los detalles de una reserva de hotel.
+   */
+  private BookingDetailsResponseDto.HotelBookingDetails buildHotelDetails(BookingEntity booking) {
+    HotelBookingEntity hotelBooking = booking.getHotelBookingEntities().getFirst();
+
+    return BookingDetailsResponseDto.HotelBookingDetails.builder()
+            .externalId(hotelBooking.getExternalId())
+            .hotelName(hotelBooking.getHotelName())
+            .destinationName(hotelBooking.getDestinationName())
+            .countryName(hotelBooking.getCountryName())
+            .roomName(hotelBooking.getRoomName())
+            .boardName(hotelBooking.getBoardName())
+            .checkInDate(hotelBooking.getCheckInDate())
+            .checkOutDate(hotelBooking.getCheckOutDate())
+            .numberOfNights(hotelBooking.getNumberOfNights())
+            .numberOfRooms(hotelBooking.getNumberOfRooms())
+            .adults(hotelBooking.getAdults())
+            .children(hotelBooking.getChildren())
+            .totalPrice(hotelBooking.getTotalPrice())
+            .taxes(hotelBooking.getTaxes())
+            .currency(hotelBooking.getCurrency())// rateComment, etc.
+            .build();
+  }
 
   @Override
   public byte[] downloadVoucher(Long bookingId) {
@@ -138,6 +229,15 @@ public class BookingServiceImpl implements BookingService {
               HttpStatus.INTERNAL_SERVER_ERROR,
               "Error al descargar voucher");
     }
+  }
+
+  @Override
+  public String getBookingReference(Long bookingId) {
+
+    BookingEntity booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new EntityNotFoundException(
+                    "Reserva no encontrada con ID: " + bookingId));
+    return booking.getBookingReference();
   }
 
   /*@Override

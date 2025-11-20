@@ -39,8 +39,6 @@ public class BookingEntity {
   @Column(unique = true)
   private String bookingReference;
 
-  private String externalReference;
-
   private Integer clientId;
 
   private Integer agentId;
