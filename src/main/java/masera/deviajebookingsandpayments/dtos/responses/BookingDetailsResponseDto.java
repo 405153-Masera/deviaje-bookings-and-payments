@@ -92,7 +92,7 @@ public class BookingDetailsResponseDto {
 
     private String currency;
 
-    private ItineraryDto itineraries;
+    private List<ItineraryDto> itineraries;
 
     private List<TravelerDto> travelers;
   }

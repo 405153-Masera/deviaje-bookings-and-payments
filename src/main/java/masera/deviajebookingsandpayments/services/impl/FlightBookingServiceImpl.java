@@ -171,7 +171,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .destination(request.getDestination())
             .departureDate(extractDepartureDate(flightOffer))
             .returnDate(extractReturnDate(flightOffer))
-            .carrier(extractCarrier(flightOffer))
+            .carrier(request.getCarrier())
             .adults(countAdults(request))
             .children(countChildren(request))
             .infants(countInfants(request))

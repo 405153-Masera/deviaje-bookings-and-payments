@@ -1,6 +1,7 @@
 package masera.deviajebookingsandpayments.services.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
@@ -198,20 +199,19 @@ public class BookingServiceImpl implements BookingService {
 
     try {
       if (flightBooking.getItineraries() != null) {
-        ItineraryDto itineraryDto = objectMapper.readValue(
+        // CAMBIO 1: Deserializar como List<ItineraryDto> en vez de ItineraryDto
+        List<ItineraryDto> itinerariesDto = objectMapper.readValue(
                 flightBooking.getItineraries(),
-                ItineraryDto.class
+                new TypeReference<List<ItineraryDto>>() {}
         );
-        flightDetails.setItineraries(itineraryDto);
+        flightDetails.setItineraries(itinerariesDto);
       }
 
       if (flightBooking.getTravelers() != null) {
+        // CAMBIO 2: Corregir el TypeReference a TravelerDto en vez de ItineraryDto
         List<TravelerDto> travelersDto = objectMapper.readValue(
                 flightBooking.getTravelers(),
-                objectMapper.getTypeFactory().constructCollectionType(
-                        List.class,
-                        TravelerDto.class
-                )
+                new TypeReference<List<TravelerDto>>() {}
         );
         flightDetails.setTravelers(travelersDto);
       }

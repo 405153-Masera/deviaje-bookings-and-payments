@@ -46,16 +46,12 @@ public class FlightBookingEntity {
 
   private String returnDate;
 
-  @Column(length = 2)
   private String carrier; // Código IATA de aerolínea
 
-  @Column()
   private Integer adults;
 
-  @Column()
   private Integer children;
 
-  @Column()
   private Integer infants;
 
   @Column(columnDefinition = "JSON")

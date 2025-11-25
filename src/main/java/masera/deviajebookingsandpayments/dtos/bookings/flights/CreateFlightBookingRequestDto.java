@@ -27,6 +27,8 @@ public class CreateFlightBookingRequestDto {
 
   private String destination;
 
+  private String carrier;
+
   private CancellationRulesDto cancellationRules;
 
   @NotNull(message = "La oferta de vuelo es obligatoria")
