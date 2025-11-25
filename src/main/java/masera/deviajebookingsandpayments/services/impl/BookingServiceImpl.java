@@ -1,11 +1,17 @@
 package masera.deviajebookingsandpayments.services.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import masera.deviajebookingsandpayments.clients.UserClient;
+import masera.deviajebookingsandpayments.dtos.additional.UserBasicInfoDto;
+import masera.deviajebookingsandpayments.dtos.bookings.flights.ItineraryDto;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.HotelBookingApi;
+import masera.deviajebookingsandpayments.dtos.bookings.travelers.TravelerDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingDetailsResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
 import masera.deviajebookingsandpayments.entities.BookingEntity;
@@ -35,11 +41,15 @@ public class BookingServiceImpl implements BookingService {
 
   private final PaymentRepository paymentRepository;
 
+  private final UserClient userClient;
+
   private final VoucherService voucherService;
 
   private final EmailService emailService;
 
   private final ModelMapper modelMapper;
+
+  private final ObjectMapper objectMapper;
 
   @Override
   public List<BookingResponseDto> getClientBookings(Integer clientId,
@@ -162,13 +172,15 @@ public class BookingServiceImpl implements BookingService {
     log.info("Detalles de la reserva {} obtenidos exitosamente", bookingId);
     return response;
   }
+
   /**
    * Construye los detalles de una reserva de vuelo.
    */
   private BookingDetailsResponseDto.FlightBookingDetails buildFlightDetails(BookingEntity booking) {
     FlightBookingEntity flightBooking = booking.getFlightBookingEntities().getFirst();
 
-    return BookingDetailsResponseDto.FlightBookingDetails.builder()
+    BookingDetailsResponseDto.FlightBookingDetails flightDetails =
+            BookingDetailsResponseDto.FlightBookingDetails.builder()
             .externalId(flightBooking.getExternalId())
             .origin(flightBooking.getOrigin())
             .destination(flightBooking.getDestination())
@@ -181,6 +193,31 @@ public class BookingServiceImpl implements BookingService {
             .totalPrice(flightBooking.getTotalPrice())
             .currency(flightBooking.getCurrency())
             .build();
+
+    try {
+      if (flightBooking.getItineraries() != null) {
+        ItineraryDto itineraryDto = objectMapper.readValue(
+                flightBooking.getItineraries(),
+                ItineraryDto.class
+        );
+        flightDetails.setItineraries(itineraryDto);
+      }
+
+      if (flightBooking.getTravelers() != null) {
+        List<TravelerDto> travelersDto = objectMapper.readValue(
+                flightBooking.getTravelers(),
+                objectMapper.getTypeFactory().constructCollectionType(
+                        List.class,
+                        TravelerDto.class
+                )
+        );
+        flightDetails.setTravelers(travelersDto);
+      }
+    } catch (JsonProcessingException e) {
+      log.error("Error al deserializar itineraries para booking {}: {}",
+              booking.getId(), e.getMessage());
+    }
+    return flightDetails;
   }
 
   /**
@@ -189,7 +226,8 @@ public class BookingServiceImpl implements BookingService {
   private BookingDetailsResponseDto.HotelBookingDetails buildHotelDetails(BookingEntity booking) {
     HotelBookingEntity hotelBooking = booking.getHotelBookingEntities().getFirst();
 
-    return BookingDetailsResponseDto.HotelBookingDetails.builder()
+    BookingDetailsResponseDto.HotelBookingDetails hotelDetails =
+            BookingDetailsResponseDto.HotelBookingDetails.builder()
             .externalId(hotelBooking.getExternalId())
             .hotelName(hotelBooking.getHotelName())
             .destinationName(hotelBooking.getDestinationName())
@@ -204,8 +242,22 @@ public class BookingServiceImpl implements BookingService {
             .children(hotelBooking.getChildren())
             .totalPrice(hotelBooking.getTotalPrice())
             .taxes(hotelBooking.getTaxes())
-            .currency(hotelBooking.getCurrency())// rateComment, etc.
+            .currency(hotelBooking.getCurrency())
             .build();
+
+    if (hotelBooking.getHotelBooking() != null) {
+      try {
+        HotelBookingApi hotelBookingApi = objectMapper.readValue(
+                hotelBooking.getHotelBooking(),
+                HotelBookingApi.class
+        );
+        hotelDetails.setHotelBooking(hotelBookingApi);
+      } catch (JsonProcessingException e) {
+        log.error("Error al deserializar hotelBooking para booking {}: {}",
+                booking.getId(), e.getMessage());
+      }
+    }
+    return hotelDetails;
   }
 
   @Override
@@ -335,9 +387,57 @@ public class BookingServiceImpl implements BookingService {
   }
 
   /**
-   * Convierte una entidad a DTO.
+   * Convierte BookingEntity a BookingResponseDto con información de usuarios.
+   *
+   * @param booking entidad de reserva
+   * @return DTO de respuesta con nombres de usuario
    */
   private BookingResponseDto convertToDto(BookingEntity booking) {
-    return modelMapper.map(booking, BookingResponseDto.class);
+    BookingResponseDto.BookingResponseDtoBuilder builder = BookingResponseDto.builder()
+            .id(booking.getId())
+            .bookingReference(booking.getBookingReference())
+            .clientId(booking.getClientId())
+            .agentId(booking.getAgentId())
+            .status(booking.getStatus().name())
+            .type(booking.getType().name())
+            .totalAmount(booking.getTotalAmount())
+            .commission(booking.getCommission())
+            .discount(booking.getDiscount())
+            .taxes(booking.getTaxes())
+            .currency(booking.getCurrency())
+            .holderName(booking.getHolderName())
+            .phone(booking.getPhone())
+            .email(booking.getEmail())
+            .createdDatetime(booking.getCreatedDatetime());
+
+    if (booking.getClientId() != null) {
+      try {
+        UserBasicInfoDto clientInfo = userClient.getUserBasicInfo(booking.getClientId())
+                .block();
+        if (clientInfo != null) {
+          builder.clientUserName(clientInfo.getUserName());
+        }
+      } catch (Exception e) {
+        log.warn("No se pudo obtener información del cliente {}: {}",
+                booking.getClientId(), e.getMessage());
+        builder.clientUserName("Cliente #" + booking.getClientId());
+      }
+    }
+
+    if (booking.getAgentId() != null) {
+      try {
+        UserBasicInfoDto agentInfo = userClient.getUserBasicInfo(booking.getAgentId())
+                .block();
+        if (agentInfo != null) {
+          builder.agentUserName(agentInfo.getUserName());
+        }
+      } catch (Exception e) {
+        log.warn("No se pudo obtener información del agente {}: {}",
+                booking.getAgentId(), e.getMessage());
+        builder.agentUserName("Agente #" + booking.getAgentId());
+      }
+    }
+
+    return builder.build();
   }
 }

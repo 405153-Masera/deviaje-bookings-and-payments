@@ -156,8 +156,10 @@ public class FlightBookingServiceImpl implements FlightBookingService {
                                         PricesDto prices) {
     ObjectMapper mapper = new ObjectMapper();
     String itinerariesJson = null;
+    String travelersJson = null;
     try {
       itinerariesJson = mapper.writeValueAsString(flightOffer.getItineraries());
+      travelersJson = mapper.writeValueAsString(request.getTravelers());
     } catch (Exception e) {
       log.warn("Error al convertir itinerarios a JSON: {}", e.getMessage());
     }
@@ -174,6 +176,7 @@ public class FlightBookingServiceImpl implements FlightBookingService {
             .children(countChildren(request))
             .infants(countInfants(request))
             .itineraries(itinerariesJson)
+            .travelers(travelersJson)
             .totalPrice(prices.getGrandTotal())
             .taxes(prices.getTaxesFlight())
             .currency(prices.getCurrency())
@@ -198,8 +201,8 @@ public class FlightBookingServiceImpl implements FlightBookingService {
                                              PricesDto payment,
                                              String externalId) {
 
-    String holderName = request.getTravelers().getFirst().getName().getFirstName() + ", "
-            + request.getTravelers().getFirst().getName().getLastName();
+    String holderName = request.getTravelers().getFirst().getName().getLastName() + " "
+            + request.getTravelers().getFirst().getName().getFirstName();
 
     // 1. Crear booking principal
     BookingEntity bookingEntity = BookingEntity.builder()

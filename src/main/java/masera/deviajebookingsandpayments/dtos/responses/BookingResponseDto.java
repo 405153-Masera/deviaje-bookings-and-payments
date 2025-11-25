@@ -24,6 +24,10 @@ public class BookingResponseDto {
 
   private Integer agentId;
 
+  private String clientUserName;
+
+  private String agentUserName;
+
   private String status;
 
   private String type; // "FLIGHT", "HOTEL", "PACKAGE"

@@ -59,7 +59,10 @@ public class FlightBookingEntity {
   private Integer infants;
 
   @Column(columnDefinition = "JSON")
-  private String itineraries; // Guardar lista de itinerarios en JSON
+  private String itineraries;
+
+  @Column(name = "travelers", columnDefinition = "JSON")
+  private String travelers;
 
   @Column(nullable = false)
   private BigDecimal totalPrice; // Grand total de Amadeus

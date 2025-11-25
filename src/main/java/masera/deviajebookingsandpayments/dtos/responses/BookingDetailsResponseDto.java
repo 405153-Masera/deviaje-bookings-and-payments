@@ -1,6 +1,5 @@
 package masera.deviajebookingsandpayments.dtos.responses;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -9,6 +8,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import masera.deviajebookingsandpayments.dtos.bookings.flights.ItineraryDto;
+import masera.deviajebookingsandpayments.dtos.bookings.hotels.HotelBookingApi;
+import masera.deviajebookingsandpayments.dtos.bookings.travelers.TravelerDto;
 
 /**
  * DTO para respuesta con detalles completos de una reserva.
@@ -90,7 +92,9 @@ public class BookingDetailsResponseDto {
 
     private String currency;
 
-    private JsonNode itinerariesJson;
+    private ItineraryDto itineraries;
+
+    private List<TravelerDto> travelers;
   }
 
   /**
@@ -132,7 +136,7 @@ public class BookingDetailsResponseDto {
 
     private String currency;
 
-    private JsonNode hotelBookingJson;
+    private HotelBookingApi hotelBooking;
   }
 
   /**
