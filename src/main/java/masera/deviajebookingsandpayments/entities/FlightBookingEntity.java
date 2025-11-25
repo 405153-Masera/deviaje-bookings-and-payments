@@ -73,9 +73,6 @@ public class FlightBookingEntity {
   @Column(length = 3)
   private String currency;
 
-  @Column(columnDefinition = "JSON")
-  private String cancellationRules;
-
   private LocalDateTime createdDatetime;
 
   /**

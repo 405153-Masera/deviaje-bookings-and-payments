@@ -90,11 +90,12 @@ public class BookingController {
   /**
    * Obtiene los detalles completos de una reserva (incluyendo datos del JSON).
    */
-  @GetMapping("/{bookingId}/details")
+  @GetMapping("/{bookingReference}/details")
   public ResponseEntity<BookingDetailsResponseDto> getBookingDetails(
-          @PathVariable Long bookingId) {
+          @PathVariable String bookingReference) {
 
-    BookingDetailsResponseDto details = bookingService.getBookingDetails(bookingId);
+    BookingDetailsResponseDto details = bookingService
+            .getBookingDetailsByReference(bookingReference);
     return ResponseEntity.ok(details);
   }
 

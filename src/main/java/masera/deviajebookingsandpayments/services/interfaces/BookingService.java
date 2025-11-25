@@ -69,6 +69,14 @@ public interface BookingService {
   BookingResponseDto getBookingById(Long bookingId);
 
   /**
+   * Obtiene los detalles completos de una reserva por su bookingReference.
+   *
+   * @param bookingReference referencia de la reserva
+   * @return la reserva con detalles completos
+   */
+  BookingDetailsResponseDto getBookingDetailsByReference(String bookingReference);
+
+  /**
    * Obtiene los detalles completos de una reserva.
    *
    * @param bookingId id de la reserva

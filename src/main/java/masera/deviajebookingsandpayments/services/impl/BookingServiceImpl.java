@@ -3,6 +3,8 @@ package masera.deviajebookingsandpayments.services.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -220,6 +222,53 @@ public class BookingServiceImpl implements BookingService {
     return flightDetails;
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public BookingDetailsResponseDto getBookingDetailsByReference(String bookingReference) {
+    log.info("Obteniendo detalles completos de la reserva con reference: {}", bookingReference);
+
+    BookingEntity booking = bookingRepository.findByBookingReference(bookingReference)
+            .orElseThrow(() -> new EntityNotFoundException(
+                    "Reserva no encontrada con referencia: " + bookingReference));
+
+    BookingDetailsResponseDto response = BookingDetailsResponseDto.builder()
+            .id(booking.getId())
+            .bookingReference(booking.getBookingReference())
+            .clientId(booking.getClientId())
+            .agentId(booking.getAgentId())
+            .status(booking.getStatus().name())
+            .type(booking.getType().name())
+            .totalAmount(booking.getTotalAmount())
+            .commission(booking.getCommission())
+            .discount(booking.getDiscount())
+            .taxes(booking.getTaxes())
+            .currency(booking.getCurrency())
+            .holderName(booking.getHolderName())
+            .countryCallingCode(booking.getCountryCallingCode())
+            .phone(booking.getPhone())
+            .email(booking.getEmail())
+            .createdDatetime(booking.getCreatedDatetime())
+            .build();
+
+    switch (booking.getType()) {
+      case FLIGHT:
+        response.setFlightDetails(buildFlightDetails(booking));
+        break;
+      case HOTEL:
+        response.setHotelDetails(buildHotelDetails(booking));
+        break;
+      case PACKAGE:
+        response.setFlightDetails(buildFlightDetails(booking));
+        response.setHotelDetails(buildHotelDetails(booking));
+        break;
+      default:
+        throw new IllegalStateException("Tipo de reserva no soportado: " + booking.getType());
+    }
+
+    log.info("Detalles {} obtenidos exitosamente", bookingReference);
+    return response;
+  }
+
   /**
    * Construye los detalles de una reserva de hotel.
    */
@@ -317,12 +366,14 @@ public class BookingServiceImpl implements BookingService {
                                          BookingEntity.BookingType type) {
 
     String prefix = switch (type) {
-      case FLIGHT -> "FLT";
-      case HOTEL -> "HTL";
-      case PACKAGE -> "PKG";
+      case FLIGHT -> "FL";
+      case HOTEL -> "HT";
+      case PACKAGE -> "PK";
     };
+    String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
-    return prefix + "-" + String.format("%08d", bookingId);
+    // Formato final: FL-20251125-00025
+    return String.format("%s-%s-%05d", prefix, datePart, bookingId);
   }
 
   @Override
