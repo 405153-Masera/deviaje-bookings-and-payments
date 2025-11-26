@@ -22,7 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class VoucherScheduledService {
 
   private final BookingRepository bookingRepository;
+
   private final VoucherService voucherService;
+
   private final EmailService emailService;
 
   /**
@@ -72,11 +74,9 @@ public class VoucherScheduledService {
    * Incluye bookings con pagos aprobados pero sin voucher o sin enviar.
    */
   private List<BookingEntity> findPendingBookings() {
-    // Buscar bookings confirmados
     List<BookingEntity> confirmedBookings =
             bookingRepository.findByStatus(BookingEntity.BookingStatus.CONFIRMED);
 
-    // Filtrar los que necesitan procesamiento
     return confirmedBookings.stream()
             .filter(this::needsVoucherProcessing)
             .toList();
@@ -86,7 +86,6 @@ public class VoucherScheduledService {
    * Verifica si un booking necesita procesamiento de voucher.
    */
   private boolean needsVoucherProcessing(BookingEntity booking) {
-    // 1. Verificar si tiene pagos aprobados
     boolean hasApprovedPayment = booking.getPaymentEntities() != null
             && booking.getPaymentEntities().stream()
             .anyMatch(p -> PaymentEntity.PaymentStatus.APPROVED.equals(p.getStatus()));
@@ -95,12 +94,8 @@ public class VoucherScheduledService {
       return false;
     }
 
-    // 2. Verificar si necesita voucher
     boolean needsVoucher = booking.getVoucher() == null;
-
-    // 3. Verificar si necesita envío
     boolean needsSending = Boolean.FALSE.equals(booking.getIsSent());
-
     return needsVoucher || needsSending;
   }
 
@@ -148,7 +143,7 @@ public class VoucherScheduledService {
   }
 
   /**
-   * Método manual para reprocesar un booking específico.
+   * Metodo manual para reprocesar un booking específico.
    * Útil para debugging o forzar reenvío.
    */
   @Transactional

@@ -91,7 +91,11 @@ public class BookingEntity {
 
   private LocalDateTime createdDatetime;
 
-  // Relaciones
+  private LocalDateTime cancelledAt;
+
+  @Column(length = 500)
+  private String cancellationReason;
+
   @OneToMany(mappedBy = "bookingEntity", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private List<FlightBookingEntity> flightBookingEntities;
 
@@ -114,7 +118,8 @@ public class BookingEntity {
    */
   public enum BookingStatus {
     CONFIRMED,
-    CANCELLED
+    CANCELLED,
+    COMPLETED
   }
 
   /**

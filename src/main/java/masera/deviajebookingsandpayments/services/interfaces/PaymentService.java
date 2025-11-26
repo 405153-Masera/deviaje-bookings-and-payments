@@ -1,5 +1,6 @@
 package masera.deviajebookingsandpayments.services.interfaces;
 
+import java.math.BigDecimal;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import org.springframework.stereotype.Service;
@@ -27,12 +28,12 @@ public interface PaymentService {
   PaymentResponseDto refundPayment(Long paymentId);
 
   /**
-   * Procesa reembolsos para una reserva.
+   * Procesa un reembolso para un booking.
    *
-   * @param bookingId ID de la reserva
-   * @return resultado del reembolso
+   * @param bookingId ID del booking
+   * @param refundAmount Monto a reembolsar (calculado por CancellationService)
    */
-  PaymentResponseDto processRefundForBooking(Long bookingId);
+  void processRefundForBooking(Long bookingId, BigDecimal refundAmount);
 
   /**
    * Verifica el estado de un pago.

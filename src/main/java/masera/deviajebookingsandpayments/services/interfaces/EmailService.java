@@ -1,5 +1,7 @@
 package masera.deviajebookingsandpayments.services.interfaces;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 
 /**
@@ -42,4 +44,25 @@ public interface EmailService {
    */
   void sendBookingVoucher(String to, String bookingReference,
                           String holderName, byte[] voucherPdf) throws Exception;
+
+  /**
+   * Envía un email de confirmación de cancelación de reserva.
+   *
+   * @param to email del destinatario
+   * @param bookingReference referencia de la reserva
+   * @param holderName nombre del titular
+   * @param bookingType tipo de reserva (FLIGHT, HOTEL, PACKAGE)
+   * @param refundAmount monto reembolsado
+   * @param currency moneda del reembolso
+   * @param cancelledAt fecha y hora de cancelación
+   */
+  void sendCancellationEmail(
+          String to,
+          String bookingReference,
+          String holderName,
+          String bookingType,
+          BigDecimal refundAmount,
+          String currency,
+          LocalDateTime cancelledAt
+  );
 }

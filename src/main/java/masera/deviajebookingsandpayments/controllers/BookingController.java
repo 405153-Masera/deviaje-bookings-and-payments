@@ -1,12 +1,15 @@
 package masera.deviajebookingsandpayments.controllers;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import masera.deviajebookingsandpayments.dtos.cancellations.CancelBookingRequestDto;
+import masera.deviajebookingsandpayments.dtos.cancellations.CancelBookingResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingDetailsResponseDto;
 import masera.deviajebookingsandpayments.dtos.responses.BookingResponseDto;
-import masera.deviajebookingsandpayments.dtos.responses.CancellationResponseDto;
 import masera.deviajebookingsandpayments.services.interfaces.BookingService;
+import masera.deviajebookingsandpayments.services.interfaces.CancellationService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +31,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class BookingController {
 
   private final BookingService bookingService;
+
+  private final CancellationService cancellationService;
 
   /**
    * Obtiene todas las reservas de un cliente con filtros opcionales.
@@ -118,45 +123,34 @@ public class BookingController {
             .headers(headers)
             .body(voucherPdf);
   }
-/*
-  /**
-   * Reenvía el voucher por email.
-   *
-  @PostMapping("/{bookingId}/voucher/resend")
-  public ResponseEntity<String> resendVoucher(@PathVariable Long bookingId) {
-    log.info("POST /bookings/{}/voucher/resend", bookingId);
-
-    String result = bookingService.resendVoucher(bookingId);
-
-    return ResponseEntity.ok(result);
-  }
 
   /**
-   * Obtiene la información de cancelación (política y monto de reembolso).
+   * Cancela una reserva.
    *
-  @GetMapping("/{bookingId}/cancellation-info")
-  public ResponseEntity<CancellationResponseDto> getCancellationInfo(
-          @PathVariable Long bookingId) {
+   * @param id ID de la reserva
+   * @param request datos de la cancelación
+   * @return resultado de la cancelación
+   */
+  @PostMapping("/{id}/cancel")
+  public ResponseEntity<CancelBookingResponseDto> cancelBooking(
+          @PathVariable Long id,
+          @Valid @RequestBody CancelBookingRequestDto request) {
 
-    log.info("GET /bookings/{}/cancellation-info", bookingId);
-
-    CancellationResponseDto info = bookingService.getCancellationInfo(bookingId);
-
-    return ResponseEntity.ok(info);
-  }
-
-  /**
-   * Cancela una reserva y procesa el reembolso si corresponde.
-   *
-  @PostMapping("/{bookingId}/cancel")
-  public ResponseEntity<CancellationResponseDto> cancelBooking(
-          @PathVariable Long bookingId,
-          @RequestBody CancelBookingRequestDto request) {
-
-    log.info("POST /bookings/{}/cancel", bookingId);
-
-    CancellationResponseDto response = bookingService.cancelBooking(bookingId, request);
-
+    log.info("Solicitud de cancelación para booking ID: {}", id);
+    CancelBookingResponseDto response = cancellationService.cancelBooking(id, request);
     return ResponseEntity.ok(response);
-  }*/
+  }
+
+  /**
+   * Reenvía el voucher de una reserva por email.
+   *
+   * @param id ID de la reserva
+   * @return confirmación del envío
+   */
+  @PostMapping("/{id}/resend-voucher")
+  public ResponseEntity<String> resendVoucher(@PathVariable Long id) {
+    log.info("Reenviando voucher para booking ID: {}", id);
+    String message = bookingService.resendVoucher(id);
+    return ResponseEntity.ok(message);
+  }
 }

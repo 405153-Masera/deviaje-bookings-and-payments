@@ -26,7 +26,6 @@ import masera.deviajebookingsandpayments.repositories.PaymentRepository;
 import masera.deviajebookingsandpayments.services.interfaces.BookingService;
 import masera.deviajebookingsandpayments.services.interfaces.EmailService;
 import masera.deviajebookingsandpayments.services.interfaces.VoucherService;
-import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,9 +47,9 @@ public class BookingServiceImpl implements BookingService {
 
   private final VoucherService voucherService;
 
-  private final EmailService emailService;
+  private final VoucherScheduledService voucherScheduledService;
 
-  private final ModelMapper modelMapper;
+  private final EmailService emailService;
 
   private final ObjectMapper objectMapper;
 
@@ -199,19 +198,17 @@ public class BookingServiceImpl implements BookingService {
 
     try {
       if (flightBooking.getItineraries() != null) {
-        // CAMBIO 1: Deserializar como List<ItineraryDto> en vez de ItineraryDto
         List<ItineraryDto> itinerariesDto = objectMapper.readValue(
                 flightBooking.getItineraries(),
-                new TypeReference<List<ItineraryDto>>() {}
+                new TypeReference<>() {}
         );
         flightDetails.setItineraries(itinerariesDto);
       }
 
       if (flightBooking.getTravelers() != null) {
-        // CAMBIO 2: Corregir el TypeReference a TravelerDto en vez de ItineraryDto
         List<TravelerDto> travelersDto = objectMapper.readValue(
                 flightBooking.getTravelers(),
-                new TypeReference<List<TravelerDto>>() {}
+                new TypeReference<>() {}
         );
         flightDetails.setTravelers(travelersDto);
       }
@@ -341,15 +338,25 @@ public class BookingServiceImpl implements BookingService {
     return booking.getBookingReference();
   }
 
-  /*@Override
+  @Override
   public String resendVoucher(Long bookingId) {
     log.info("Reenviando voucher de reserva: {}", bookingId);
 
-    try {
-      BookingEntity booking = findBookingById(bookingId);
-      emailService.sendVoucherEmail(booking);
+    BookingEntity booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Reserva no encontrada"
+            ));
 
+    try {
       String message = "Voucher enviado exitosamente a " + booking.getEmail();
+      if (booking.getVoucher() == null || booking.getVoucher().length == 0) {
+        voucherScheduledService.reprocessBooking(bookingId);
+        return message;
+      }
+      emailService.sendBookingVoucher(booking.getEmail(),
+              booking.getBookingReference(), booking.getHolderName(), booking.getVoucher());
+
       log.info(message);
       return message;
 
@@ -359,7 +366,7 @@ public class BookingServiceImpl implements BookingService {
               HttpStatus.INTERNAL_SERVER_ERROR,
               "Error al enviar el voucher: " + e.getMessage());
     }
-  }*/
+  }
 
   @Override
   public String generateBookingReference(Long bookingId,

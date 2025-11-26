@@ -9,16 +9,18 @@ import com.mercadopago.client.payment.PaymentRefundClient;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
 import com.mercadopago.resources.payment.Payment;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.configs.PagoConfig;
 import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
+import masera.deviajebookingsandpayments.entities.BookingEntity;
 import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
+import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import masera.deviajebookingsandpayments.utils.ErrorHandler;
@@ -36,6 +38,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class PaymentServiceImpl implements PaymentService {
 
   private final PaymentRepository paymentRepository;
+
+  private final BookingRepository bookingRepository;
 
   private final PagoConfig pagoConfig;
 
@@ -239,30 +243,64 @@ public class PaymentServiceImpl implements PaymentService {
     }
   }
 
+  /**
+   * Procesa un reembolso para un booking con el monto especificado.
+   *
+   * @param bookingId ID del booking a reembolsar
+   * @param refundAmount Monto calculado a reembolsar (calculado por CancellationService)
+   */
   @Override
   @Transactional
-  public PaymentResponseDto processRefundForBooking(Long bookingId) {
-    log.info("Procesando reembolso para reserva ID: {}", bookingId);
+  public void processRefundForBooking(Long bookingId, BigDecimal refundAmount) {
+    log.info("Procesando reembolso de {} para booking ID: {}", refundAmount, bookingId);
 
-    // Buscar todos los pagos de la reserva
-    List<PaymentEntity> paymentEntities =
-            paymentRepository.findByBookingEntityId(bookingId);
+    BookingEntity booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Booking no encontrado con ID: " + bookingId
+            ));
 
-    if (paymentEntities.isEmpty()) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-              "No se encontraron pagos para la reserva");
+    PaymentEntity payment = paymentRepository
+            .findByBookingEntityAndStatus(booking, PaymentEntity.PaymentStatus.APPROVED)
+            .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "No se encontró un pago aprobado para este booking"
+            ));
+
+    if (PaymentEntity.PaymentStatus.REFUNDED.equals(payment.getStatus())) {
+      throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST,
+              "Este pago ya fue reembolsado"
+      );
     }
 
-    // Procesar reembolso del último pago aprobado
-    for (PaymentEntity paymentEntity : paymentEntities) {
-      if (PaymentEntity.PaymentStatus.APPROVED.equals(paymentEntity.getStatus())) {
+    log.info("Procesando reembolso de {} {} en MercadoPago",
+            refundAmount, booking.getCurrency());
 
-        return refundPayment(paymentEntity.getId());
-      }
+    initMercadoPagoConfig();
+    PaymentRefundClient refundClient = new PaymentRefundClient();
+    Long mpPaymentId = Long.parseLong(payment.getExternalPaymentId());
+
+    try {
+      refundClient.refund(mpPaymentId, refundAmount);
+    } catch (MPException e) {
+      throw errorHandler.handleMercadoPagoError(e);
+    } catch (MPApiException e) {
+      throw errorHandler.handleMercadoPagoError(e);
     }
 
-    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-            "No hay pagos aprobados para reembolsar");
+    if (refundAmount.compareTo(payment.getAmount()) == 0) {
+      payment.setStatus(PaymentEntity.PaymentStatus.REFUNDED);
+      log.info("Pago marcado como REFUNDED (reembolso total)");
+    } else {
+      payment.setStatus(PaymentEntity.PaymentStatus.PARTIALLY_REFUNDED);
+      log.info("Pago marcado como PARTIALLY_REFUNDED (reembolso parcial de {} sobre {})",
+              refundAmount, payment.getAmount());
+    }
+
+    paymentRepository.save(payment);
+
+    log.info("Reembolso procesado exitosamente para booking ID: {}", bookingId);
   }
 
   @Override

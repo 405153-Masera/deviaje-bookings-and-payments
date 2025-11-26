@@ -3,6 +3,7 @@ package masera.deviajebookingsandpayments.repositories;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import masera.deviajebookingsandpayments.entities.BookingEntity;
 import masera.deviajebookingsandpayments.entities.HotelBookingEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -13,6 +14,14 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface HotelBookingRepository extends JpaRepository<HotelBookingEntity, Long> {
+
+  /**
+   * Encuentra un hotel booking por su booking entity.
+   *
+   * @param bookingEntity la entidad de reserva
+   * @return Hotel booking si existe
+   */
+  Optional<HotelBookingEntity> findByBookingEntity(BookingEntity bookingEntity);
 
   /**
    * Encuentra una reserva de hotel por su ID externo.

@@ -93,6 +93,14 @@ public interface BookingService {
   byte[] downloadVoucher(Long bookingId);
 
   /**
+   * Reenvía el voucher por email.
+   *
+   * @param bookingId id de la reserva.
+   * @return un mensaje confirmando el envío
+   */
+  String resendVoucher(Long bookingId);
+
+  /**
    * Metodo que genera una referencia más amigable.
    *
    * @param bookingId ID de la reserva

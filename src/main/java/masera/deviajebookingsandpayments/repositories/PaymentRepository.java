@@ -2,6 +2,8 @@ package masera.deviajebookingsandpayments.repositories;
 
 import java.util.List;
 import java.util.Optional;
+
+import masera.deviajebookingsandpayments.entities.BookingEntity;
 import masera.deviajebookingsandpayments.entities.PaymentEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -29,18 +31,14 @@ public interface PaymentRepository extends JpaRepository<PaymentEntity, Long> {
   Optional<PaymentEntity> findByExternalPaymentId(String externalPaymentId);
 
   /**
-   * Encuentra pagos por estado.
+   * Encuentra un pago por booking y estado.
    *
-   * @param status Estado del pago
-   * @return Lista de pagos con el estado especificado
+   * @param bookingEntity la entidad de reserva
+   * @param status el estado del pago
+   * @return Pago si existe
    */
-  List<PaymentEntity> findByStatus(PaymentEntity.PaymentStatus status);
-
-  /**
-   * Encuentra pagos por método de pago.
-   *
-   * @param method Método de pago
-   * @return Lista de pagos con el método especificado
-   */
-  List<PaymentEntity> findByMethod(String method);
+  Optional<PaymentEntity> findByBookingEntityAndStatus(
+          BookingEntity bookingEntity,
+          PaymentEntity.PaymentStatus status
+  );
 }
