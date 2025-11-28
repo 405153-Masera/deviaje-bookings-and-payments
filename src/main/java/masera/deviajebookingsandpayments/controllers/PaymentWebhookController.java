@@ -6,8 +6,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import masera.deviajebookingsandpayments.entities.BookingEntity;
 import masera.deviajebookingsandpayments.entities.PaymentEntity;
+import masera.deviajebookingsandpayments.entities.RefundEntity;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
+import masera.deviajebookingsandpayments.repositories.RefundRepository;
 import masera.deviajebookingsandpayments.services.interfaces.EmailService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import masera.deviajebookingsandpayments.services.interfaces.VoucherService;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Controlador para webhooks de procesadores de pago.
+ * Procesa notificaciones de MercadoPago para pagos y reembolsos.
  */
 @RestController
 @RequiredArgsConstructor
@@ -30,6 +33,8 @@ public class PaymentWebhookController {
 
   private final BookingRepository bookingRepository;
 
+  private final RefundRepository refundRepository;
+
   private final PaymentService paymentService;
 
   private final VoucherService voucherService;
@@ -37,7 +42,8 @@ public class PaymentWebhookController {
   private final EmailService emailService;
 
   /**
-   * Recibe notificaciones de Mercado Pago sobre cambios en los pagos.
+   * Recibe notificaciones de MercadoPago sobre cambios en pagos y reembolsos.
+   * Este es el ÚNICO endpoint que debe configurarse en el panel de MercadoPago.
    *
    * @param request datos de la notificación
    * @return respuesta al servicio de notificaciones
@@ -46,14 +52,13 @@ public class PaymentWebhookController {
   public ResponseEntity<Map<String, String>> handleMercadoPagoWebhook(
           @RequestBody Map<String, Object> request) {
 
-    log.info("Recibida notificación de Mercado Pago: {}", request);
+    log.info("Recibida notificación de MercadoPago: {}", request);
 
     try {
-      // Verificar tipo de notificación
-      if (!"payment".equals(request.get("type"))) {
-        log.info("Tipo de notificación ignorado: {}", request.get("type"));
-        return ResponseEntity.ok(Map.of("status", "OK", "message", "Ignored notification type"));
-      }
+      String type = (String) request.get("type");
+      String action = (String) request.get("action");
+
+      log.info("Webhook - type: {}, action: {}", type, action);
 
       // Obtener datos del pago
       if (!request.containsKey("data")) {
@@ -65,20 +70,29 @@ public class PaymentWebhookController {
       Map<String, Object> data = (Map<String, Object>) request.get("data");
 
       if (!data.containsKey("id")) {
-        log.warn("Notificación sin ID de pago");
-        return ResponseEntity.ok(Map.of("status", "OK", "message", "No payment ID"));
+        log.warn("Notificación sin ID");
+        return ResponseEntity.ok(Map.of("status", "OK", "message", "No ID"));
       }
 
       String paymentId = data.get("id").toString();
-      log.info("Procesando webhook para pago ID: {}", paymentId);
 
-      // Actualizar el estado del pago en nuestra base de datos
-      updatePaymentStatusAndGenerateVoucher(paymentId);
+      // Diferenciar según el tipo de evento
+      if ("payment".equals(type) && action == null) {
+        // Pago nuevo aprobado → generar voucher y enviar email
+        log.info("Procesando webhook de pago para ID: {}", paymentId);
+        updatePaymentStatusAndGenerateVoucher(paymentId);
+      } else if ("payment.updated".equals(action) || "refund".equals(type)) {
+        // Refund confirmado → enviar email de cancelación
+        log.info("Procesando webhook de refund para pago ID: {}", paymentId);
+        processRefundConfirmation(paymentId);
+      } else {
+        log.info("Tipo de notificación ignorado: type={}, action={}", type, action);
+      }
 
       return ResponseEntity.ok(Map.of("status", "OK"));
 
     } catch (Exception e) {
-      log.error("Error al procesar webhook de Mercado Pago", e);
+      log.error("Error al procesar webhook de MercadoPago", e);
       // Siempre devolver 200 OK para que MercadoPago no reintente
       return ResponseEntity.ok(Map.of("status", "ERROR", "message", e.getMessage()));
     }
@@ -87,7 +101,7 @@ public class PaymentWebhookController {
   /**
    * Actualiza el estado de un pago y genera el voucher si está aprobado.
    *
-   * @param mercadoPagoPaymentId id del pago en Mercado Pago
+   * @param mercadoPagoPaymentId id del pago en MercadoPago
    */
   private void updatePaymentStatusAndGenerateVoucher(String mercadoPagoPaymentId) {
     try {
@@ -95,15 +109,13 @@ public class PaymentWebhookController {
 
       // 1. Consultar el estado actual del pago en MercadoPago
       var paymentResponse = paymentService.checkExternalPaymentStatus(mercadoPagoPaymentId);
-
       log.info("Estado del pago en MercadoPago: {}", paymentResponse.getStatus());
 
       // 2. Buscar el pago en nuestra BD
       var paymentOpt = paymentRepository.findByExternalPaymentId(mercadoPagoPaymentId);
 
       if (paymentOpt.isEmpty()) {
-        log.warn("Pago con ID externo {} no encontrado en nuestra base de datos",
-                mercadoPagoPaymentId);
+        log.warn("Pago con ID externo {} no encontrado en nuestra BD", mercadoPagoPaymentId);
         return;
       }
 
@@ -187,55 +199,6 @@ public class PaymentWebhookController {
   }
 
   /**
-   * Recibe notificaciones de MercadoPago sobre reembolsos.
-   *
-   * @param request datos de la notificación
-   * @return respuesta al servicio de notificaciones
-   */
-  @PostMapping("/refund")
-  public ResponseEntity<Map<String, String>> handleRefundWebhook(
-          @RequestBody Map<String, Object> request) {
-
-    log.info("Recibida notificación de reembolso de MercadoPago: {}", request);
-
-    try {
-      // Verificar tipo de notificación
-      String type = (String) request.get("type");
-      if (!"refund".equals(type) && !"payment".equals(type)) {
-        log.info("Tipo de notificación ignorado: {}", type);
-        return ResponseEntity.ok(Map.of("status", "OK", "message", "Ignored notification type"));
-      }
-
-      // Obtener datos del pago/refund
-      if (!request.containsKey("data")) {
-        log.warn("Notificación sin campo 'data'");
-        return ResponseEntity.ok(Map.of("status", "OK", "message", "No data field"));
-      }
-
-      @SuppressWarnings("unchecked")
-      Map<String, Object> data = (Map<String, Object>) request.get("data");
-
-      if (!data.containsKey("id")) {
-        log.warn("Notificación sin ID");
-        return ResponseEntity.ok(Map.of("status", "OK", "message", "No ID"));
-      }
-
-      String paymentId = data.get("id").toString();
-      log.info("Procesando webhook de refund para pago ID: {}", paymentId);
-
-      // Procesar el refund confirmado
-      processRefundConfirmation(paymentId);
-
-      return ResponseEntity.ok(Map.of("status", "OK"));
-
-    } catch (Exception e) {
-      log.error("Error al procesar webhook de refund", e);
-      // Siempre devolver 200 OK para que MercadoPago no reintente
-      return ResponseEntity.ok(Map.of("status", "ERROR", "message", e.getMessage()));
-    }
-  }
-
-  /**
    * Procesa la confirmación de un reembolso desde MercadoPago.
    *
    * @param mercadoPagoPaymentId ID del pago en MercadoPago
@@ -246,7 +209,6 @@ public class PaymentWebhookController {
 
       // 1. Consultar el estado actual del pago en MercadoPago
       var paymentResponse = paymentService.checkExternalPaymentStatus(mercadoPagoPaymentId);
-
       log.info("Estado del pago en MercadoPago: {}", paymentResponse.getStatus());
 
       // 2. Verificar si el pago fue reembolsado
@@ -260,8 +222,7 @@ public class PaymentWebhookController {
       var paymentOpt = paymentRepository.findByExternalPaymentId(mercadoPagoPaymentId);
 
       if (paymentOpt.isEmpty()) {
-        log.warn("Pago con ID externo {} no encontrado en nuestra base de datos",
-                mercadoPagoPaymentId);
+        log.warn("Pago con ID externo {} no encontrado en nuestra BD", mercadoPagoPaymentId);
         return;
       }
 
@@ -292,7 +253,7 @@ public class PaymentWebhookController {
   }
 
   /**
-   * Envía el email de confirmación de cancelación con detalles del reembolso.
+   * Envía el email de confirmación de cancelación con el monto real del reembolso.
    *
    * @param booking entidad de reserva cancelada
    * @param payment entidad de pago reembolsado
@@ -301,17 +262,16 @@ public class PaymentWebhookController {
     try {
       log.info("Enviando email de cancelación para booking: {}", booking.getBookingReference());
 
-      // Calcular monto reembolsado (puede ser parcial)
-      BigDecimal refundAmount = payment.getStatus() == PaymentEntity.PaymentStatus.REFUNDED
-              ? payment.getAmount()
-              : payment.getAmount().multiply(BigDecimal.valueOf(0.9)); // Ejemplo si es parcial
+      // Buscar el refund asociado para obtener el monto real reembolsado
+      RefundEntity refund = refundRepository.findByBookingEntityId(booking.getId())
+              .orElseThrow();
 
       emailService.sendCancellationEmail(
               booking.getEmail(),
               booking.getBookingReference(),
               booking.getHolderName(),
               booking.getType().name(),
-              refundAmount,
+              refund.getAmount(),
               booking.getCurrency(),
               booking.getCancelledAt()
       );

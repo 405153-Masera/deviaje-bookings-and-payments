@@ -78,6 +78,10 @@ public class HotelBookingEntity {
   @Column(columnDefinition = "JSON")
   private String hotelBooking;
 
+  @Lob
+  @Column(columnDefinition = "JSON")
+  private String cancellationPolicies;
+
   private LocalDateTime createdDatetime;
 
   /**

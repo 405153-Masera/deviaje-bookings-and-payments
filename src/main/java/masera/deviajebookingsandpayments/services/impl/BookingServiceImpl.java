@@ -297,7 +297,16 @@ public class BookingServiceImpl implements BookingService {
                 hotelBooking.getHotelBooking(),
                 HotelBookingApi.class
         );
+
         hotelDetails.setHotelBooking(hotelBookingApi);
+
+        if (hotelBooking.getCancellationPolicies() != null) {
+          List<HotelBookingApi.CancellationPolicy> cancellationPolicies = objectMapper.readValue(
+                  hotelBooking.getCancellationPolicies(),
+                  new TypeReference<>() {}
+          );
+          hotelDetails.setCancellationPolicies(cancellationPolicies);
+        }
       } catch (JsonProcessingException e) {
         log.error("Error al deserializar hotelBooking para booking {}: {}",
                 booking.getId(), e.getMessage());

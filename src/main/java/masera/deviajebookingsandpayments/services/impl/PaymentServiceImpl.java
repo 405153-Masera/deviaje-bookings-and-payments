@@ -9,6 +9,7 @@ import com.mercadopago.client.payment.PaymentRefundClient;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
 import com.mercadopago.resources.payment.Payment;
+import com.mercadopago.resources.payment.PaymentRefund;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -19,9 +20,11 @@ import masera.deviajebookingsandpayments.dtos.payments.PaymentRequestDto;
 import masera.deviajebookingsandpayments.dtos.responses.PaymentResponseDto;
 import masera.deviajebookingsandpayments.entities.BookingEntity;
 import masera.deviajebookingsandpayments.entities.PaymentEntity;
+import masera.deviajebookingsandpayments.entities.RefundEntity;
 import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
+import masera.deviajebookingsandpayments.repositories.RefundRepository;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import masera.deviajebookingsandpayments.utils.ErrorHandler;
 import org.springframework.http.HttpStatus;
@@ -40,6 +43,8 @@ public class PaymentServiceImpl implements PaymentService {
   private final PaymentRepository paymentRepository;
 
   private final BookingRepository bookingRepository;
+
+  private final RefundRepository refundRepository;
 
   private final PagoConfig pagoConfig;
 
@@ -261,7 +266,7 @@ public class PaymentServiceImpl implements PaymentService {
             ));
 
     PaymentEntity payment = paymentRepository
-            .findByBookingEntityAndStatus(booking, PaymentEntity.PaymentStatus.APPROVED)
+            .findByBookingEntityIdAndStatus(bookingId, PaymentEntity.PaymentStatus.APPROVED)
             .orElseThrow(() -> new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
                     "No se encontró un pago aprobado para este booking"
@@ -274,31 +279,32 @@ public class PaymentServiceImpl implements PaymentService {
       );
     }
 
-    log.info("Procesando reembolso de {} {} en MercadoPago",
-            refundAmount, booking.getCurrency());
-
     initMercadoPagoConfig();
     PaymentRefundClient refundClient = new PaymentRefundClient();
     Long mpPaymentId = Long.parseLong(payment.getExternalPaymentId());
 
+    payment.setStatus(PaymentEntity.PaymentStatus.REFUNDED);
+    paymentRepository.save(payment);
+
     try {
-      refundClient.refund(mpPaymentId, refundAmount);
+      PaymentRefund refundResponse =
+              refundClient.refund(mpPaymentId, refundAmount);
+
+      RefundEntity refundEntity = RefundEntity.builder()
+              .bookingEntity(booking)
+              .originalPayment(payment)
+              .amount(refundAmount)
+              .currency(payment.getCurrency())
+              .externalRefundId(refundResponse.getId().toString())
+              .status(RefundEntity.RefundStatus.COMPLETED)
+              .build();
+
+      refundRepository.save(refundEntity);
     } catch (MPException e) {
       throw errorHandler.handleMercadoPagoError(e);
     } catch (MPApiException e) {
       throw errorHandler.handleMercadoPagoError(e);
     }
-
-    if (refundAmount.compareTo(payment.getAmount()) == 0) {
-      payment.setStatus(PaymentEntity.PaymentStatus.REFUNDED);
-      log.info("Pago marcado como REFUNDED (reembolso total)");
-    } else {
-      payment.setStatus(PaymentEntity.PaymentStatus.PARTIALLY_REFUNDED);
-      log.info("Pago marcado como PARTIALLY_REFUNDED (reembolso parcial de {} sobre {})",
-              refundAmount, payment.getAmount());
-    }
-
-    paymentRepository.save(payment);
 
     log.info("Reembolso procesado exitosamente para booking ID: {}", bookingId);
   }
@@ -408,7 +414,7 @@ public class PaymentServiceImpl implements PaymentService {
       case "approved" -> PaymentEntity.PaymentStatus.APPROVED;
       case "rejected" -> PaymentEntity.PaymentStatus.REJECTED;
       case "cancelled" -> PaymentEntity.PaymentStatus.CANCELLED;
-      case "refunded" -> PaymentEntity.PaymentStatus.REFUNDED;
+      case "refunded", "partially_refunded" -> PaymentEntity.PaymentStatus.REFUNDED;
       default -> PaymentEntity.PaymentStatus.PENDING;
     };
   }

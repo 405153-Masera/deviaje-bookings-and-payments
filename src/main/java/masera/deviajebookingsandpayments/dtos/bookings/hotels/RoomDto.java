@@ -26,4 +26,6 @@ public class RoomDto {
 
   @NotEmpty(message = "La lista de huéspedes no puede estar vacía")
   private List<PaxDto> paxes;
+
+  private String cancellationPolicies;
 }

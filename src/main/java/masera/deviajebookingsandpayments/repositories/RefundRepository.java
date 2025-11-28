@@ -26,5 +26,5 @@ public interface RefundRepository extends JpaRepository<RefundEntity, Long> {
   /**
    * Busca todos los reembolsos de un booking por su ID.
    */
-  List<RefundEntity> findByBookingEntityId(Long bookingId);
+  Optional<RefundEntity> findByBookingEntityId(Long bookingId);
 }

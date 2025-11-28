@@ -236,6 +236,7 @@ public class HotelBookingServiceImpl implements HotelBookingService {
             .adults(countAdults(request))
             .children(countChildren(request))
             .totalPrice(prices.getNet())
+            .cancellationPolicies(request.getRooms().getFirst().getCancellationPolicies())
             .taxes(prices.getTaxesHotel())
             .currency(prices.getCurrency())
             .build();

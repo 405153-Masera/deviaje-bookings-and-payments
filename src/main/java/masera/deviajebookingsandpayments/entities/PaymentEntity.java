@@ -83,6 +83,5 @@ public class PaymentEntity {
     REJECTED,
     CANCELLED,
     REFUNDED,
-    PARTIALLY_REFUNDED
   }
 }

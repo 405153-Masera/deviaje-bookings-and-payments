@@ -136,6 +136,8 @@ public class BookingDetailsResponseDto {
 
     private String currency;
 
+    private List<HotelBookingApi.CancellationPolicy> cancellationPolicies;
+
     private HotelBookingApi hotelBooking;
   }
 
