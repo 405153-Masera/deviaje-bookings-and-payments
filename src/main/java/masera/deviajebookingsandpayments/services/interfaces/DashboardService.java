@@ -18,7 +18,10 @@ public interface DashboardService {
    * @return resumen con KPIs globales y datos mini
    */
   DashboardDtos.DashboardSummaryDto getDashboardSummary(
-          LocalDateTime startDate, LocalDateTime endDate);
+          LocalDateTime startDate, LocalDateTime endDate,
+          String bookingStatus,
+          String bookingType
+  );
 
   /**
    * Obtiene reservas agrupadas por tipo (Flight, Hotel, Package).

@@ -38,12 +38,15 @@ public class DashboardController {
           @RequestParam(required = false)
           @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+          @RequestParam(required = false) String bookingStatus,
+          @RequestParam(required = false) String bookingType) {
 
     LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
     LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
 
-    DashboardDtos.DashboardSummaryDto summary = dashboardService.getDashboardSummary(start, end);
+    DashboardDtos.DashboardSummaryDto summary = dashboardService
+            .getDashboardSummary(start, end, bookingStatus, bookingType);
     return ResponseEntity.ok(summary);
   }
 

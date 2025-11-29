@@ -224,7 +224,9 @@ public class DashboardDtos {
     }
   }
 
-  // ==================== SUMMARY (para vista principal) ====================
+  /**
+   * Datos para el panel de gráficos.
+   */
   @Data
   @NoArgsConstructor
   @AllArgsConstructor
@@ -233,6 +235,9 @@ public class DashboardDtos {
     private GlobalKpis globalKpis;
     private List<MiniChartData> miniCharts;
 
+    /**
+     * Estadísticas para el panel de gráficos.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -242,8 +247,13 @@ public class DashboardDtos {
       private BigDecimal totalRevenue;
       private BigDecimal totalCommissions;
       private BigDecimal averageBookingValue;
+      private Long uniqueDestinations;
+      private Long uniqueCarriers;
     }
 
+    /**
+     * Datos para cada gráfico individual.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor

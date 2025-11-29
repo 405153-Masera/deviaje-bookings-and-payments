@@ -114,11 +114,12 @@ public class DashboardServiceImpl implements DashboardService {
   //region Métodos para la vista principal de los gráficos
   @Override
   public DashboardDtos.DashboardSummaryDto getDashboardSummary(LocalDateTime startDate,
-                                                               LocalDateTime endDate) {
+                                                               LocalDateTime endDate,
+                                                               String bookingStatus,
+                                                               String bookingType) {
     log.info("Generando resumen del dashboard");
 
-    List<BookingEntity> bookings = filterBookings(startDate, endDate, null, null);
-
+    List<BookingEntity> bookings = filterBookings(startDate, endDate, bookingType, bookingStatus);
     // KPIs globales
     long totalBookings = bookings.size();
     BigDecimal totalRevenue = bookings.stream()
@@ -161,15 +162,17 @@ public class DashboardServiceImpl implements DashboardService {
             .map(BookingEntity::getId)
             .toList();
 
-    Map<String, Long> topDestinations = hotelBookingRepository.findAll().stream()
+    Map<String, Long> destinations = hotelBookingRepository.findAll().stream()
             .filter(hb -> hotelBookingIds.contains(hb.getBookingEntity().getId()))
             .filter(hb -> hb.getDestinationName() != null)
             .collect(Collectors.groupingBy(
                     hb -> hb.getDestinationName() + ", "
                             + (hb.getCountryName() != null ? hb.getCountryName() : ""),
                     Collectors.counting()
-            ))
-            .entrySet().stream()
+            ));
+
+    long uniqueDestinations = destinations.size();
+    Map<String, Long> topDestinations = destinations.entrySet().stream()
             .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
             .limit(5)
             .collect(Collectors.toMap(
@@ -191,14 +194,16 @@ public class DashboardServiceImpl implements DashboardService {
             .map(BookingEntity::getId)
             .toList();
 
-    Map<String, Long> topCarriers = flightBookingRepository.findAll().stream()
+    Map<String, Long> carrierCount = flightBookingRepository.findAll().stream()
             .filter(fb -> flightBookingIds.contains(fb.getBookingEntity().getId()))
             .filter(fb -> fb.getCarrier() != null)
             .collect(Collectors.groupingBy(
                     FlightBookingEntity::getCarrier,
                     Collectors.counting()
-            ))
-            .entrySet().stream()
+            ));
+    long totalUniqueCarriers = carrierCount.size();
+
+    Map<String, Long> topCarriers = carrierCount.entrySet().stream()
             .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
             .limit(5)
             .collect(Collectors.toMap(
@@ -237,38 +242,13 @@ public class DashboardServiceImpl implements DashboardService {
                     .totalRevenue(totalRevenue)
                     .totalCommissions(totalCommissions)
                     .averageBookingValue(averageBookingValue)
+                    .uniqueDestinations(uniqueDestinations)
+                    .uniqueCarriers(totalUniqueCarriers)
                     .build();
     return DashboardDtos.DashboardSummaryDto.builder()
             .globalKpis(globalKpis)
             .miniCharts(miniCharts)
             .build();
-  }
-
-  private Map<String, BigDecimal> calculateRevenueLast7Days(List<BookingEntity> bookings) {
-    LocalDate endDate = LocalDate.now();
-    LocalDate startDate = endDate.minusDays(6);
-    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM");
-
-    Map<LocalDate, BigDecimal> dataMap = new LinkedHashMap<>();
-
-    // Inicializar todos los días con 0
-    for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-      dataMap.put(date, BigDecimal.ZERO);
-    }
-
-    // Llenar con datos reales
-    bookings.forEach(booking -> {
-      LocalDate bookingDate = booking.getCreatedDatetime().toLocalDate();
-      if (!bookingDate.isBefore(startDate) && !bookingDate.isAfter(endDate)) {
-        dataMap.put(bookingDate,
-                dataMap.get(bookingDate).add(booking.getTotalAmount()));
-      }
-    });
-
-    // Convertir a Map<String, BigDecimal> con formato de fecha
-    Map<String, BigDecimal> result = new LinkedHashMap<>();
-    dataMap.forEach((date, amount) -> result.put(date.format(formatter), amount));
-    return result;
   }
   //endregion
 
