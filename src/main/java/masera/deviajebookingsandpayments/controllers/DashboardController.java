@@ -36,15 +36,14 @@ public class DashboardController {
   @GetMapping("/summary")
   public ResponseEntity<DashboardDtos.DashboardSummaryDto> getDashboardSummary(
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime startDate,
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime endDate) {
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
-    log.info("GET /api/dashboard/summary - startDate: {}, endDate: {}", startDate, endDate);
+    LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+    LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
 
-    DashboardDtos.DashboardSummaryDto summary = dashboardService.getDashboardSummary(startDate, endDate);
+    DashboardDtos.DashboardSummaryDto summary = dashboardService.getDashboardSummary(start, end);
     return ResponseEntity.ok(summary);
   }
 
@@ -55,7 +54,7 @@ public class DashboardController {
    * @param endDate fecha de fin
    * @param bookingType filtro por tipo específico (opcional)
    * @param bookingStatus filtro por estado (opcional)
-   * @return datos del gráfico + KPIs
+   * @return datos del gráfico + KPI
    */
   @GetMapping("/bookings-by-type")
   public ResponseEntity<DashboardDtos.BookingsByTypeDto> getBookingsByType(
@@ -88,20 +87,19 @@ public class DashboardController {
   @GetMapping("/revenue-over-time")
   public ResponseEntity<DashboardDtos.RevenueOverTimeDto> getRevenueOverTime(
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime startDate,
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime endDate,
-          @RequestParam(defaultValue = "MONTHLY") String granularity,
-          @RequestParam(required = false) String bookingType) {
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+          @RequestParam(required = false) String granularity,
+          @RequestParam(required = false) String bookingType,
+          @RequestParam(required = false) Integer agentId) {
 
-    log.info("GET /api/dashboard/revenue-over-time - startDate: {}, endDate: {}, granularity: {}, type: {}",
-            startDate, endDate, granularity, bookingType);
+    LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+    LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
 
-    DashboardDtos.RevenueOverTimeDto data = dashboardService.getRevenueOverTime(
-            startDate, endDate, granularity, bookingType);
-    return ResponseEntity.ok(data);
+    DashboardDtos.RevenueOverTimeDto result = dashboardService.getRevenueOverTime(
+            start, end, granularity, bookingType, agentId);
+    return ResponseEntity.ok(result);
   }
 
   /**
@@ -116,20 +114,18 @@ public class DashboardController {
   @GetMapping("/top-destinations")
   public ResponseEntity<DashboardDtos.TopDestinationsDto> getTopDestinations(
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime startDate,
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime endDate,
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
           @RequestParam(defaultValue = "10") Integer limit,
-          @RequestParam(required = false) String bookingStatus) {
+          @RequestParam(required = false) String bookingStatus,
+          @RequestParam(required = false, defaultValue = "HOTEL") String type) {
 
-    log.info("GET /api/dashboard/top-destinations - startDate: {}, endDate: {}, limit: {}, status: {}",
-            startDate, endDate, limit, bookingStatus);
-
-    DashboardDtos.TopDestinationsDto data = dashboardService.getTopDestinations(
-            startDate, endDate, limit, bookingStatus);
-    return ResponseEntity.ok(data);
+    LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+    LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
+    DashboardDtos.TopDestinationsDto result = dashboardService.getTopDestinations(
+            start, end, limit, bookingStatus, type);
+    return ResponseEntity.ok(result);
   }
 
   /**
@@ -144,19 +140,16 @@ public class DashboardController {
   @GetMapping("/top-carriers")
   public ResponseEntity<DashboardDtos.TopCarriersDto> getTopCarriers(
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime startDate,
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime endDate,
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
           @RequestParam(defaultValue = "10") Integer limit,
           @RequestParam(required = false) String bookingStatus) {
 
-    log.info("GET /api/dashboard/top-carriers - startDate: {}, endDate: {}, limit: {}, status: {}",
-            startDate, endDate, limit, bookingStatus);
-
+    LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+    LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
     DashboardDtos.TopCarriersDto data = dashboardService.getTopCarriers(
-            startDate, endDate, limit, bookingStatus);
+            start, end, limit, bookingStatus);
     return ResponseEntity.ok(data);
   }
 
@@ -165,50 +158,22 @@ public class DashboardController {
    *
    * @param startDate fecha de inicio
    * @param endDate fecha de fin
-   * @param paymentMethod filtro por método de pago (opcional)
+   * @param paymentMethod filtro por metodo de pago (opcional)
    * @return distribución de pagos + KPIs
    */
   @GetMapping("/payments-by-status")
   public ResponseEntity<DashboardDtos.PaymentsByStatusDto> getPaymentsByStatus(
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime startDate,
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
           @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime endDate,
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
           @RequestParam(required = false) String paymentMethod) {
 
-    log.info("GET /api/dashboard/payments-by-status - startDate: {}, endDate: {}, method: {}",
-            startDate, endDate, paymentMethod);
+    LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+    LocalDateTime end = endDate != null ? endDate.atTime(23, 59, 59) : null;
 
     DashboardDtos.PaymentsByStatusDto data = dashboardService.getPaymentsByStatus(
-            startDate, endDate, paymentMethod);
-    return ResponseEntity.ok(data);
-  }
-
-  /**
-   * Endpoint para obtener reservas por estado.
-   *
-   * @param startDate fecha de inicio
-   * @param endDate fecha de fin
-   * @param bookingType filtro por tipo (opcional)
-   * @return distribución de reservas + KPIs
-   */
-  @GetMapping("/bookings-by-status")
-  public ResponseEntity<DashboardDtos.BookingsByStatusDto> getBookingsByStatus(
-          @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime startDate,
-          @RequestParam(required = false)
-          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime endDate,
-          @RequestParam(required = false) String bookingType) {
-
-    log.info("GET /api/dashboard/bookings-by-status - startDate: {}, endDate: {}, type: {}",
-            startDate, endDate, bookingType);
-
-    DashboardDtos.BookingsByStatusDto data = dashboardService.getBookingsByStatus(
-            startDate, endDate, bookingType);
+            start, end, paymentMethod);
     return ResponseEntity.ok(data);
   }
 }

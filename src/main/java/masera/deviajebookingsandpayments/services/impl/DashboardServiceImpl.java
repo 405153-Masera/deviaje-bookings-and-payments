@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,23 +111,7 @@ public class DashboardServiceImpl implements DashboardService {
             && payment.getMethod().equalsIgnoreCase(method);
   }
 
-  private String getCarrierName(String iataCode) {
-    Map<String, String> carriers = Map.of(
-            "AA", "American Airlines",
-            "AR", "Aerolíneas Argentinas",
-            "LA", "LATAM Airlines",
-            "UA", "United Airlines",
-            "DL", "Delta Airlines",
-            "BA", "British Airways",
-            "IB", "Iberia",
-            "AF", "Air France",
-            "LH", "Lufthansa"
-    );
-    return carriers.getOrDefault(iataCode, iataCode);
-  }
-
-  // ==================== SUMMARY (Vista Principal) ====================
-
+  //region Métodos para la vista principal de los gráficos
   @Override
   public DashboardDtos.DashboardSummaryDto getDashboardSummary(LocalDateTime startDate,
                                                                LocalDateTime endDate) {
@@ -146,15 +131,6 @@ public class DashboardServiceImpl implements DashboardService {
             ? totalRevenue.divide(BigDecimal.valueOf(totalBookings), 2, RoundingMode.HALF_UP)
             : BigDecimal.ZERO;
 
-    DashboardDtos.DashboardSummaryDto.GlobalKpis globalKpis =
-            DashboardDtos.DashboardSummaryDto.GlobalKpis.builder()
-                    .totalBookings(totalBookings)
-                    .totalRevenue(totalRevenue)
-                    .totalCommissions(totalCommissions)
-                    .averageBookingValue(averageBookingValue)
-                    .build();
-
-    // Mini charts (datos simplificados para vista previa)
     List<DashboardDtos.DashboardSummaryDto.MiniChartData> miniCharts = new ArrayList<>();
 
     // Mini chart 1: Bookings by type
@@ -170,13 +146,98 @@ public class DashboardServiceImpl implements DashboardService {
             .build());
 
     // Mini chart 2: Revenue last 7 days
-    Map<String, BigDecimal> revenueLast7Days = calculateRevenueLast7Days(bookings);
+    LocalDateTime end = LocalDate.now().atStartOfDay();
+    LocalDateTime start = LocalDate.now().minusDays(6).atTime(23, 59, 59);
+    List<DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint> revenueLast7Days =
+            calculateDailyRevenue(bookings, start, end);
     miniCharts.add(DashboardDtos.DashboardSummaryDto.MiniChartData.builder()
             .chartType("REVENUE_OVER_TIME")
-            .title("Revenue Últimos 7 Días")
+            .title("Ventas por Día")
             .previewData(revenueLast7Days)
             .build());
 
+    // Mini chart 3: Top 5 Destinations (HOTELS)
+    List<Long> hotelBookingIds = bookings.stream()
+            .map(BookingEntity::getId)
+            .toList();
+
+    Map<String, Long> topDestinations = hotelBookingRepository.findAll().stream()
+            .filter(hb -> hotelBookingIds.contains(hb.getBookingEntity().getId()))
+            .filter(hb -> hb.getDestinationName() != null)
+            .collect(Collectors.groupingBy(
+                    hb -> hb.getDestinationName() + ", "
+                            + (hb.getCountryName() != null ? hb.getCountryName() : ""),
+                    Collectors.counting()
+            ))
+            .entrySet().stream()
+            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+            .limit(5)
+            .collect(Collectors.toMap(
+                    Map.Entry::getKey,
+                    Map.Entry::getValue,
+                    (e1, e2) -> e1,
+                    LinkedHashMap::new
+            ));
+
+    miniCharts.add(DashboardDtos.DashboardSummaryDto.MiniChartData.builder()
+            .chartType("TOP_DESTINATIONS")
+            .title("Top 5 Destinos")
+            .previewData(topDestinations)
+            .build());
+
+    // Mini chart 4: Top 5 Carriers (FLIGHTS)
+    List<Long> flightBookingIds = bookings.stream()
+            .filter(b -> "FLIGHT".equals(b.getType().name()))
+            .map(BookingEntity::getId)
+            .toList();
+
+    Map<String, Long> topCarriers = flightBookingRepository.findAll().stream()
+            .filter(fb -> flightBookingIds.contains(fb.getBookingEntity().getId()))
+            .filter(fb -> fb.getCarrier() != null)
+            .collect(Collectors.groupingBy(
+                    FlightBookingEntity::getCarrier,
+                    Collectors.counting()
+            ))
+            .entrySet().stream()
+            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+            .limit(5)
+            .collect(Collectors.toMap(
+                    Map.Entry::getKey,
+                    Map.Entry::getValue,
+                    (e1, e2) -> e1,
+                    LinkedHashMap::new
+            ));
+
+    miniCharts.add(DashboardDtos.DashboardSummaryDto.MiniChartData.builder()
+            .chartType("TOP_CARRIERS")
+            .title("Top 5 Aerolíneas")
+            .previewData(topCarriers)
+            .build());
+
+    // Mini chart 5: Payments by Status
+    List<PaymentEntity> payments = paymentRepository.findAll().stream()
+            .filter(p -> filterPaymentByDateRange(p, startDate, endDate))
+            .toList();
+
+    Map<String, Long> paymentsByStatus = payments.stream()
+            .collect(Collectors.groupingBy(
+                    p -> p.getStatus().name(),
+                    Collectors.counting()
+            ));
+
+    miniCharts.add(DashboardDtos.DashboardSummaryDto.MiniChartData.builder()
+            .chartType("PAYMENTS_BY_STATUS")
+            .title("Pagos por Estado")
+            .previewData(paymentsByStatus)
+            .build());
+
+    DashboardDtos.DashboardSummaryDto.GlobalKpis globalKpis =
+            DashboardDtos.DashboardSummaryDto.GlobalKpis.builder()
+                    .totalBookings(totalBookings)
+                    .totalRevenue(totalRevenue)
+                    .totalCommissions(totalCommissions)
+                    .averageBookingValue(averageBookingValue)
+                    .build();
     return DashboardDtos.DashboardSummaryDto.builder()
             .globalKpis(globalKpis)
             .miniCharts(miniCharts)
@@ -209,9 +270,9 @@ public class DashboardServiceImpl implements DashboardService {
     dataMap.forEach((date, amount) -> result.put(date.format(formatter), amount));
     return result;
   }
+  //endregion
 
-  // BOOKINGS BY TYPE
-
+  //region Métodos para el gráfico de BOOKINGS BY TYPE
   @Override
   public DashboardDtos.BookingsByTypeDto getBookingsByType(LocalDateTime startDate,
                                                            LocalDateTime endDate,
@@ -221,7 +282,6 @@ public class DashboardServiceImpl implements DashboardService {
                                                            Integer clientId) {
     List<BookingEntity> bookings = filterBookings(startDate, endDate, bookingType, bookingStatus);
 
-    log.info("agent id", agentId);
     if (agentId != null) {
       bookings = bookings.stream()
               .filter(b -> b.getAgentId() != null && b.getAgentId().equals(agentId))
@@ -284,19 +344,25 @@ public class DashboardServiceImpl implements DashboardService {
             .kpis(kpis)
             .build();
   }
+  //endregion
 
-  // ==================== REVENUE OVER TIME ====================
-
+  //region Métodos para el gráfico de REVENUE OVER TIME
   @Override
   public DashboardDtos.RevenueOverTimeDto getRevenueOverTime(LocalDateTime startDate,
                                                              LocalDateTime endDate,
                                                              String granularity,
-                                                             String bookingType) {
-    log.info("Obteniendo revenue en el tiempo con granularidad: {}", granularity);
-
+                                                             String bookingType,
+                                                             Integer agentId) {
     List<BookingEntity> bookings = filterBookings(startDate, endDate, bookingType, null);
 
-    List<DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint> data = switch (granularity.toUpperCase()) {
+    if (agentId != null) {
+      bookings = bookings.stream()
+              .filter(b -> b.getAgentId() != null && b.getAgentId().equals(agentId))
+              .collect(Collectors.toList());
+    }
+
+    List<DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint> data
+            = switch (granularity.toUpperCase()) {
       case "DAILY" -> calculateDailyRevenue(bookings, startDate, endDate);
       case "YEARLY" -> calculateYearlyRevenue(bookings);
       default -> calculateMonthlyRevenue(bookings, startDate, endDate);
@@ -306,23 +372,28 @@ public class DashboardServiceImpl implements DashboardService {
     BigDecimal totalRevenue = data.stream()
             .map(DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint::getRevenue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal totalCommission = data.stream()
+            .map(DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint::getCommission)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal averageRevenuePerPeriod = !data.isEmpty()
             ? totalRevenue.divide(BigDecimal.valueOf(data.size()), 2, RoundingMode.HALF_UP)
             : BigDecimal.ZERO;
 
     DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint highest = data.stream()
-            .max((a, b) -> a.getRevenue().compareTo(b.getRevenue()))
+            .max(Comparator.comparing(DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint::getRevenue))
             .orElse(null);
 
     BigDecimal highestRevenue = highest != null ? highest.getRevenue() : BigDecimal.ZERO;
     String highestRevenuePeriod = highest != null ? highest.getPeriod() : "";
 
-    DashboardDtos.RevenueOverTimeDto.KpisDto kpis = DashboardDtos.RevenueOverTimeDto.KpisDto.builder()
-            .totalRevenue(totalRevenue)
-            .averageRevenuePerPeriod(averageRevenuePerPeriod)
-            .highestRevenue(highestRevenue)
-            .highestRevenuePeriod(highestRevenuePeriod)
-            .build();
+    DashboardDtos.RevenueOverTimeDto.KpisDto kpis = DashboardDtos.RevenueOverTimeDto.KpisDto
+            .builder()
+              .totalRevenue(totalRevenue)
+              .totalCommission(totalCommission)
+              .averageRevenuePerPeriod(averageRevenuePerPeriod)
+              .highestRevenue(highestRevenue)
+              .highestRevenuePeriod(highestRevenuePeriod)
+              .build();
 
     return DashboardDtos.RevenueOverTimeDto.builder()
             .data(data)
@@ -340,7 +411,8 @@ public class DashboardServiceImpl implements DashboardService {
     LocalDate end = endDate != null ? endDate.toLocalDate() : LocalDate.now();
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    Map<LocalDate, DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint> dataMap = new LinkedHashMap<>();
+    Map<LocalDate, DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint> dataMap =
+            new LinkedHashMap<>();
 
     // Inicializar todos los días
     for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
@@ -356,8 +428,8 @@ public class DashboardServiceImpl implements DashboardService {
     bookings.forEach(booking -> {
       LocalDate bookingDate = booking.getCreatedDatetime().toLocalDate();
       if (!bookingDate.isBefore(start) && !bookingDate.isAfter(end)) {
-        DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint existing = dataMap.get(bookingDate);
-        dataMap.put(bookingDate, DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint.builder()
+        dataMap.computeIfPresent(bookingDate, (k, existing)
+                -> DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint.builder()
                 .period(existing.getPeriod())
                 .bookingsCount(existing.getBookingsCount() + 1)
                 .revenue(existing.getRevenue().add(booking.getTotalAmount()))
@@ -399,8 +471,8 @@ public class DashboardServiceImpl implements DashboardService {
     bookings.forEach(booking -> {
       String monthKey = booking.getCreatedDatetime().format(formatter);
       if (dataMap.containsKey(monthKey)) {
-        DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint existing = dataMap.get(monthKey);
-        dataMap.put(monthKey, DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint.builder()
+        dataMap.computeIfPresent(monthKey, (k, existing)
+                -> DashboardDtos.RevenueOverTimeDto.TimeSeriesPoint.builder()
                 .period(existing.getPeriod())
                 .bookingsCount(existing.getBookingsCount() + 1)
                 .revenue(existing.getRevenue().add(booking.getTotalAmount()))
@@ -437,83 +509,146 @@ public class DashboardServiceImpl implements DashboardService {
 
     return new ArrayList<>(dataMap.values());
   }
+  //endregion
 
-  // ==================== TOP DESTINATIONS ====================
-
+  //region para el gráfico TOP DESTINATIONS
   @Override
   public DashboardDtos.TopDestinationsDto getTopDestinations(LocalDateTime startDate,
                                                              LocalDateTime endDate,
                                                              Integer limit,
-                                                             String bookingStatus) {
-    log.info("Obteniendo top {} destinos", limit);
+                                                             String bookingStatus,
+                                                             String type) {
+    log.info("Obteniendo top {} destinos de tipo {}", limit, type);
 
-    List<BookingEntity> bookings = filterBookings(startDate, endDate, "HOTEL", bookingStatus);
+    List<BookingEntity> bookings = filterBookings(startDate, endDate, null, bookingStatus);
+
     List<Long> bookingIds = bookings.stream()
             .map(BookingEntity::getId)
-            .collect(Collectors.toList());
+            .toList();
 
-    List<HotelBookingEntity> hotelBookings = hotelBookingRepository.findAll().stream()
-            .filter(hb -> bookingIds.contains(hb.getBookingEntity().getId()))
-            .filter(hb -> hb.getDestinationName() != null)
-            .collect(Collectors.toList());
+    List<DashboardDtos.TopDestinationsDto.DestinationData> destinationDataList = new ArrayList<>();
+    long totalBookings = 0;
+    int uniqueDestinations = 0;
+    String topDestination = "";
+    BigDecimal totalRevenue = BigDecimal.ZERO;
 
-    // Agrupar por destino
-    Map<String, List<HotelBookingEntity>> groupedByDestination = hotelBookings.stream()
-            .collect(Collectors.groupingBy(HotelBookingEntity::getDestinationName));
+    if ("HOTEL".equals(type)) {
+      List<HotelBookingEntity> hotelBookings = hotelBookingRepository.findAll().stream()
+              .filter(hb -> bookingIds.contains(hb.getBookingEntity().getId()))
+              .filter(hb -> hb.getDestinationName() != null)
+              .toList();
 
-    List<DashboardDtos.TopDestinationsDto.DestinationData> data = new ArrayList<>();
-    groupedByDestination.forEach((destination, hotelList) -> {
-      Long bookingsCount = (long) hotelList.size();
-      BigDecimal revenue = hotelList.stream()
+      // Agrupar por destino (destination_name + country)
+      Map<String, List<HotelBookingEntity>> groupedByDestination = hotelBookings.stream()
+              .collect(Collectors.groupingBy(hb ->
+                      hb.getDestinationName() + ", "
+                              + (hb.getCountryName() != null ? hb.getCountryName() : "")
+              ));
+
+      destinationDataList = groupedByDestination.entrySet().stream()
+              .map(entry -> {
+                String destination = entry.getKey();
+                List<HotelBookingEntity> destBookings = entry.getValue();
+
+                long count = destBookings.size();
+                BigDecimal revenue = destBookings.stream()
+                        .map(HotelBookingEntity::getTotalPrice)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                // Calcular promedio de noches
+                double averageNights = destBookings.stream()
+                        .mapToInt(HotelBookingEntity::getNumberOfNights)
+                        .average()
+                        .orElse(0.0);
+
+                // Calcular precio promedio
+                BigDecimal averagePrice = count > 0
+                        ? revenue.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+
+                return DashboardDtos.TopDestinationsDto.DestinationData.builder()
+                        .destination(destination)
+                        .bookingsCount(count)
+                        .revenue(revenue)
+                        .averageNights((int) averageNights)
+                        .averagePrice(averagePrice)
+                        .build();
+              })
+              .sorted((a, b) -> Long.compare(b.getBookingsCount(), a.getBookingsCount()))
+              .limit(limit != null ? limit : 10)
+              .collect(Collectors.toList());
+
+      totalBookings = hotelBookings.size();
+      uniqueDestinations = groupedByDestination.size();
+      topDestination = destinationDataList.isEmpty() ? "" : destinationDataList
+              .getFirst().getDestination();
+      totalRevenue = hotelBookings.stream()
               .map(HotelBookingEntity::getTotalPrice)
               .reduce(BigDecimal.ZERO, BigDecimal::add);
-      Double averageNights = hotelList.stream()
-              .mapToInt(HotelBookingEntity::getNumberOfNights)
-              .average()
-              .orElse(0.0);
-      BigDecimal averagePrice = bookingsCount > 0
-              ? revenue.divide(BigDecimal.valueOf(bookingsCount), 2, RoundingMode.HALF_UP)
-              : BigDecimal.ZERO;
 
-      data.add(DashboardDtos.TopDestinationsDto.DestinationData.builder()
-              .destination(destination)
-              .bookingsCount(bookingsCount)
-              .revenue(revenue)
-              .averageNights(averageNights.intValue())
-              .averagePrice(averagePrice)
-              .build());
-    });
+    } else if ("FLIGHT".equals(type)) {
+      // Obtener todos los flight bookings que corresponden a los bookings filtrados
+      List<FlightBookingEntity> flightBookings = flightBookingRepository.findAll().stream()
+              .filter(fb -> bookingIds.contains(fb.getBookingEntity().getId()))
+              .filter(fb -> fb.getDestination() != null)
+              .toList();
 
-    // Ordenar por bookingsCount descendente y limitar
-    data.sort((a, b) -> b.getBookingsCount().compareTo(a.getBookingsCount()));
-    List<DashboardDtos.TopDestinationsDto.DestinationData> limitedData = data.stream()
-            .limit(limit)
-            .collect(Collectors.toList());
+      // Agrupar por destino
+      Map<String, List<FlightBookingEntity>> groupedByDestination = flightBookings.stream()
+              .collect(Collectors.groupingBy(FlightBookingEntity::getDestination));
 
-    // KPIs
-    Long totalHotelBookings = (long) hotelBookings.size();
-    Integer uniqueDestinations = groupedByDestination.size();
-    String topDestination = !limitedData.isEmpty() ? limitedData.get(0).getDestination() : "";
-    BigDecimal totalHotelRevenue = data.stream()
-            .map(DashboardDtos.TopDestinationsDto.DestinationData::getRevenue)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+      destinationDataList = groupedByDestination.entrySet().stream()
+              .map(entry -> {
+                String destination = entry.getKey();
+                List<FlightBookingEntity> destBookings = entry.getValue();
 
-    DashboardDtos.TopDestinationsDto.KpisDto kpis = DashboardDtos.TopDestinationsDto.KpisDto.builder()
-            .totalHotelBookings(totalHotelBookings)
-            .uniqueDestinations(uniqueDestinations)
-            .topDestination(topDestination)
-            .totalHotelRevenue(totalHotelRevenue)
-            .build();
+                long count = destBookings.size();
+                BigDecimal revenue = destBookings.stream()
+                        .map(FlightBookingEntity::getTotalPrice)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                // Calcular precio promedio
+                BigDecimal averagePrice = count > 0
+                        ? revenue.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+
+                return DashboardDtos.TopDestinationsDto.DestinationData.builder()
+                        .destination(destination)
+                        .bookingsCount(count)
+                        .revenue(revenue)
+                        .averageNights(0)
+                        .averagePrice(averagePrice)
+                        .build();
+              })
+              .sorted((a, b) -> Long.compare(b.getBookingsCount(), a.getBookingsCount()))
+              .limit(limit != null ? limit : 10)
+              .collect(Collectors.toList());
+
+      totalBookings = flightBookings.size();
+      uniqueDestinations = groupedByDestination.size();
+      topDestination = destinationDataList.isEmpty() ? "" : destinationDataList
+              .getFirst().getDestination();
+      totalRevenue = flightBookings.stream()
+              .map(FlightBookingEntity::getTotalPrice)
+              .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    DashboardDtos.TopDestinationsDto.KpisDto kpis =
+            DashboardDtos.TopDestinationsDto.KpisDto.builder()
+                    .totalBookings(totalBookings)
+                    .uniqueDestinations(uniqueDestinations)
+                    .topDestination(topDestination)
+                    .totalRevenue(totalRevenue)
+                    .build();
 
     return DashboardDtos.TopDestinationsDto.builder()
-            .data(limitedData)
+            .data(destinationDataList)
             .kpis(kpis)
-            .limit(limit)
             .build();
   }
+  //endregion
 
-  // ==================== TOP CARRIERS ====================
-
+  //region para el gráfico TOP CARRIERS
   @Override
   public DashboardDtos.TopCarriersDto getTopCarriers(LocalDateTime startDate,
                                                      LocalDateTime endDate,
@@ -521,37 +656,41 @@ public class DashboardServiceImpl implements DashboardService {
                                                      String bookingStatus) {
     log.info("Obteniendo top {} aerolíneas", limit);
 
-    List<BookingEntity> bookings = filterBookings(startDate, endDate, "FLIGHT", bookingStatus);
+    List<BookingEntity> bookings = filterBookings(startDate, endDate, null, bookingStatus);
     List<Long> bookingIds = bookings.stream()
             .map(BookingEntity::getId)
-            .collect(Collectors.toList());
+            .toList();
 
     List<FlightBookingEntity> flightBookings = flightBookingRepository.findAll().stream()
             .filter(fb -> bookingIds.contains(fb.getBookingEntity().getId()))
             .filter(fb -> fb.getCarrier() != null)
-            .collect(Collectors.toList());
+            .toList();
 
     // Agrupar por aerolínea
     Map<String, List<FlightBookingEntity>> groupedByCarrier = flightBookings.stream()
             .collect(Collectors.groupingBy(FlightBookingEntity::getCarrier));
 
     List<DashboardDtos.TopCarriersDto.CarrierData> data = new ArrayList<>();
-    groupedByCarrier.forEach((carrierCode, flightList) -> {
-      Long bookingsCount = (long) flightList.size();
-      BigDecimal revenue = flightList.stream()
+    groupedByCarrier.forEach((carrierName, flightList) -> {
+      long bookingsCount = flightList.size();
+      BigDecimal totalRevenue = flightList.stream()
               .map(FlightBookingEntity::getTotalPrice)
               .reduce(BigDecimal.ZERO, BigDecimal::add);
-      Double averagePassengers = flightList.stream()
+      double averagePassengers = flightList.stream()
               .mapToInt(fb -> fb.getAdults() + fb.getChildren() + fb.getInfants())
               .average()
               .orElse(0.0);
 
+      BigDecimal averagePrice = bookingsCount > 0
+              ? totalRevenue.divide(BigDecimal.valueOf(bookingsCount), 2, RoundingMode.HALF_UP)
+              : BigDecimal.ZERO;
+
       data.add(DashboardDtos.TopCarriersDto.CarrierData.builder()
-              .carrierCode(carrierCode)
-              .carrierName(getCarrierName(carrierCode))
+              .carrierName(carrierName)
               .bookingsCount(bookingsCount)
-              .revenue(revenue)
-              .averagePassengers(averagePassengers.intValue())
+              .totalRevenue(totalRevenue)
+              .averagePassengers((int) averagePassengers)
+              .averagePrice(averagePrice)
               .build());
     });
 
@@ -564,9 +703,9 @@ public class DashboardServiceImpl implements DashboardService {
     // KPIs
     Long totalFlightBookings = (long) flightBookings.size();
     Integer uniqueCarriers = groupedByCarrier.size();
-    String topCarrier = !limitedData.isEmpty() ? limitedData.get(0).getCarrierName() : "";
+    String topCarrier = !limitedData.isEmpty() ? limitedData.getFirst().getCarrierName() : "";
     BigDecimal totalFlightRevenue = data.stream()
-            .map(DashboardDtos.TopCarriersDto.CarrierData::getRevenue)
+            .map(DashboardDtos.TopCarriersDto.CarrierData::getTotalRevenue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
     DashboardDtos.TopCarriersDto.KpisDto kpis = DashboardDtos.TopCarriersDto.KpisDto.builder()
@@ -582,9 +721,9 @@ public class DashboardServiceImpl implements DashboardService {
             .limit(limit)
             .build();
   }
+  //endregion
 
-  // ==================== PAYMENTS BY STATUS ====================
-
+  //region métodos para el gráfico PAYMENTS BY STATUS
   @Override
   public DashboardDtos.PaymentsByStatusDto getPaymentsByStatus(LocalDateTime startDate,
                                                                LocalDateTime endDate,
@@ -621,82 +760,31 @@ public class DashboardServiceImpl implements DashboardService {
     });
 
     // KPIs
-    Long totalPayments = (long) payments.size();
-    Long approvedPayments = Long.valueOf(groupedByStatus.getOrDefault("APPROVED", List.of()).size());
+    long totalPayments = payments.size();
+    long approvedPayments = groupedByStatus.getOrDefault("APPROVED", List.of()).size();
     BigDecimal approvedAmount = groupedByStatus.getOrDefault("APPROVED", List.of()).stream()
             .map(PaymentEntity::getAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
-    Long rejectedPayments = Long.valueOf(groupedByStatus.getOrDefault("REJECTED", List.of()).size());
+
+    long refundedPayments = groupedByStatus.getOrDefault("REFUNDED", List.of()).size();
     Double approvalRate = totalPayments > 0
-            ? (approvedPayments.doubleValue() / totalPayments) * 100
+            ? ((double) approvedPayments / totalPayments) * 100
             : 0.0;
 
-    DashboardDtos.PaymentsByStatusDto.KpisDto kpis = DashboardDtos.PaymentsByStatusDto.KpisDto.builder()
-            .totalPayments(totalPayments)
-            .totalAmount(totalAmount)
-            .approvedPayments((long) approvedPayments)
-            .approvedAmount(approvedAmount)
-            .rejectedPayments((long) rejectedPayments)
-            .approvalRate(approvalRate)
-            .build();
+    DashboardDtos.PaymentsByStatusDto.KpisDto kpis = DashboardDtos.PaymentsByStatusDto.KpisDto
+            .builder()
+              .totalPayments(totalPayments)
+              .totalAmount(totalAmount)
+              .approvedPayments(approvedPayments)
+              .approvedAmount(approvedAmount)
+              .refundedPayments(refundedPayments)
+              .approvalRate(approvalRate)
+              .build();
 
     return DashboardDtos.PaymentsByStatusDto.builder()
             .data(data)
             .kpis(kpis)
             .build();
   }
-
-  // ==================== BOOKINGS BY STATUS ====================
-
-  @Override
-  public DashboardDtos.BookingsByStatusDto getBookingsByStatus(LocalDateTime startDate,
-                                                               LocalDateTime endDate,
-                                                               String bookingType) {
-    log.info("Obteniendo reservas por estado");
-
-    List<BookingEntity> bookings = filterBookings(startDate, endDate, bookingType, null);
-
-    // Agrupar por estado
-    Map<String, List<BookingEntity>> groupedByStatus = bookings.stream()
-            .collect(Collectors.groupingBy(b -> b.getStatus().name()));
-
-    List<DashboardDtos.BookingsByStatusDto.StatusData> data = new ArrayList<>();
-    Long totalBookings = (long) bookings.size();
-
-    groupedByStatus.forEach((status, bookingList) -> {
-      Long count = (long) bookingList.size();
-      BigDecimal revenue = bookingList.stream()
-              .map(BookingEntity::getTotalAmount)
-              .reduce(BigDecimal.ZERO, BigDecimal::add);
-      Double percentage = totalBookings > 0
-              ? (count.doubleValue() / totalBookings) * 100
-              : 0.0;
-
-      data.add(DashboardDtos.BookingsByStatusDto.StatusData.builder()
-              .status(status)
-              .count(count)
-              .revenue(revenue)
-              .percentage(percentage)
-              .build());
-    });
-
-    // KPIs
-    Long confirmedBookings = (long) groupedByStatus.getOrDefault("CONFIRMED", List.of()).size();
-    Long cancelledBookings = (long) groupedByStatus.getOrDefault("CANCELLED", List.of()).size();
-    Double cancellationRate = totalBookings > 0
-            ? (cancelledBookings.doubleValue() / totalBookings) * 100
-            : 0.0;
-
-    DashboardDtos.BookingsByStatusDto.KpisDto kpis = DashboardDtos.BookingsByStatusDto.KpisDto.builder()
-            .totalBookings(totalBookings)
-            .confirmedBookings(confirmedBookings)
-            .cancelledBookings(cancelledBookings)
-            .cancellationRate(cancellationRate)
-            .build();
-
-    return DashboardDtos.BookingsByStatusDto.builder()
-            .data(data)
-            .kpis(kpis)
-            .build();
-  }
+  //endregion
 }

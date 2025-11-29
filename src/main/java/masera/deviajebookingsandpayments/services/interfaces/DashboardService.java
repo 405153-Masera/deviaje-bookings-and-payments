@@ -49,7 +49,9 @@ public interface DashboardService {
   DashboardDtos.RevenueOverTimeDto getRevenueOverTime(LocalDateTime startDate,
                                                       LocalDateTime endDate,
                                                       String granularity,
-                                                      String bookingType);
+                                                      String bookingType,
+                                                      Integer agentId
+  );
 
   /**
    * Obtiene top destinos más reservados (hoteles).
@@ -58,12 +60,14 @@ public interface DashboardService {
    * @param endDate fecha de fin
    * @param limit cantidad de destinos a mostrar
    * @param bookingStatus filtro por estado (opcional)
+   * @param type tipo de reserva
    * @return top destinos + KPIs
    */
   DashboardDtos.TopDestinationsDto getTopDestinations(LocalDateTime startDate,
                                                       LocalDateTime endDate,
                                                       Integer limit,
-                                                      String bookingStatus);
+                                                      String bookingStatus,
+                                                      String type);
 
   /**
    * Obtiene top aerolíneas más reservadas (vuelos).
@@ -84,22 +88,10 @@ public interface DashboardService {
    *
    * @param startDate fecha de inicio
    * @param endDate fecha de fin
-   * @param paymentMethod filtro por método de pago (opcional)
+   * @param paymentMethod filtro por metodo de pago (opcional)
    * @return distribución de pagos + KPIs
    */
   DashboardDtos.PaymentsByStatusDto getPaymentsByStatus(LocalDateTime startDate,
                                                         LocalDateTime endDate,
                                                         String paymentMethod);
-
-  /**
-   * Obtiene reservas agrupadas por estado.
-   *
-   * @param startDate fecha de inicio
-   * @param endDate fecha de fin
-   * @param bookingType filtro por tipo (opcional)
-   * @return distribución de reservas + KPI
-   */
-  DashboardDtos.BookingsByStatusDto getBookingsByStatus(LocalDateTime startDate,
-                                                        LocalDateTime endDate,
-                                                        String bookingType);
 }

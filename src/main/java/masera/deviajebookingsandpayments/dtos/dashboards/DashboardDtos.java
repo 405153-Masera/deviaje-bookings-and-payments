@@ -56,7 +56,9 @@ public class DashboardDtos {
     }
   }
 
-  // ==================== REVENUE OVER TIME ====================
+  /**
+   * Datos para el gráfico ingresos a lo largo del tiempo.
+   */
   @Data
   @NoArgsConstructor
   @AllArgsConstructor
@@ -66,6 +68,9 @@ public class DashboardDtos {
     private KpisDto kpis;
     private String granularity; // "DAILY", "MONTHLY", "YEARLY"
 
+    /**
+     * Suma por periodo de las ventas y comisiones.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -77,19 +82,25 @@ public class DashboardDtos {
       private BigDecimal commission;
     }
 
+    /**
+     * Estadísticas del gráfico de ingresos a lo largo del tiempo.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
     public static class KpisDto {
       private BigDecimal totalRevenue;
+      private BigDecimal totalCommission;
       private BigDecimal averageRevenuePerPeriod;
       private BigDecimal highestRevenue;
       private String highestRevenuePeriod;
     }
   }
 
-  // ==================== TOP DESTINATIONS ====================
+  /**
+   * Datos del gráfico Top Destinos.
+   */
   @Data
   @NoArgsConstructor
   @AllArgsConstructor
@@ -99,6 +110,9 @@ public class DashboardDtos {
     private KpisDto kpis;
     private Integer limit; // Top 5, 10, 20, etc.
 
+    /**
+     * Datos estadísticos por destino.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -111,19 +125,24 @@ public class DashboardDtos {
       private BigDecimal averagePrice;
     }
 
+    /**
+     * Estadísticas del gráfico Top Destinos.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
     public static class KpisDto {
-      private Long totalHotelBookings;
+      private Long totalBookings;
       private Integer uniqueDestinations;
       private String topDestination;
-      private BigDecimal totalHotelRevenue;
+      private BigDecimal totalRevenue;
     }
   }
 
-  // ==================== TOP CARRIERS ====================
+  /**
+   * Datos del gráfico de top aerolíneas.
+   */
   @Data
   @NoArgsConstructor
   @AllArgsConstructor
@@ -133,18 +152,24 @@ public class DashboardDtos {
     private KpisDto kpis;
     private Integer limit;
 
+    /**
+     * Datos de la aerolínea.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
     public static class CarrierData {
-      private String carrierCode;
       private String carrierName;
       private Long bookingsCount;
-      private BigDecimal revenue;
+      private BigDecimal totalRevenue;
       private Integer averagePassengers;
+      private BigDecimal averagePrice;
     }
 
+    /**
+     * Estadísticas para el gráfico top aerolíneas.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -157,7 +182,9 @@ public class DashboardDtos {
     }
   }
 
-  // ==================== PAYMENTS BY STATUS ====================
+  /**
+   *  Datos para el gráfico de pagos por estado.
+   */
   @Data
   @NoArgsConstructor
   @AllArgsConstructor
@@ -166,6 +193,9 @@ public class DashboardDtos {
     private List<StatusData> data;
     private KpisDto kpis;
 
+    /**
+     * Datos del estado de pago.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -177,6 +207,9 @@ public class DashboardDtos {
       private Double percentage;
     }
 
+    /**
+     * Estadísticas para el gráfico de pagos por estado.
+     */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -186,40 +219,8 @@ public class DashboardDtos {
       private BigDecimal totalAmount;
       private Long approvedPayments;
       private BigDecimal approvedAmount;
-      private Long rejectedPayments;
+      private Long refundedPayments;
       private Double approvalRate;
-    }
-  }
-
-  // ==================== BOOKINGS BY STATUS ====================
-  @Data
-  @NoArgsConstructor
-  @AllArgsConstructor
-  @Builder
-  public static class BookingsByStatusDto {
-    private List<StatusData> data;
-    private KpisDto kpis;
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class StatusData {
-      private String status;
-      private Long count;
-      private BigDecimal revenue;
-      private Double percentage;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class KpisDto {
-      private Long totalBookings;
-      private Long confirmedBookings;
-      private Long cancelledBookings;
-      private Double cancellationRate;
     }
   }
 
