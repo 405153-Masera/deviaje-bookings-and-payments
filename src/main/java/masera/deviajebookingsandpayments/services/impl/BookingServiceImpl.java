@@ -180,7 +180,7 @@ public class BookingServiceImpl implements BookingService {
    */
   private BookingDetailsResponseDto.FlightBookingDetails buildFlightDetails(BookingEntity booking) {
     FlightBookingEntity flightBooking = booking.getFlightBookingEntities().getFirst();
-
+    log.info(flightBooking.getReturnDate());
     BookingDetailsResponseDto.FlightBookingDetails flightDetails =
             BookingDetailsResponseDto.FlightBookingDetails.builder()
             .externalId(flightBooking.getExternalId())
@@ -188,7 +188,7 @@ public class BookingServiceImpl implements BookingService {
             .destination(flightBooking.getDestination())
             .carrier(flightBooking.getCarrier())
             .departureDate(flightBooking.getDepartureDate())
-            .arrivalDate(flightBooking.getReturnDate())
+            .returnDate(flightBooking.getReturnDate())
             .adults(flightBooking.getAdults())
             .children(flightBooking.getChildren())
             .infants(flightBooking.getInfants())

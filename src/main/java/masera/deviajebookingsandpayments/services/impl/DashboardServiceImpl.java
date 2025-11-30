@@ -190,7 +190,6 @@ public class DashboardServiceImpl implements DashboardService {
 
     // Mini chart 4: Top 5 Carriers (FLIGHTS)
     List<Long> flightBookingIds = bookings.stream()
-            .filter(b -> "FLIGHT".equals(b.getType().name()))
             .map(BookingEntity::getId)
             .toList();
 

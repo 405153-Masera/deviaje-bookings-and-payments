@@ -77,7 +77,7 @@ public class PaymentWebhookController {
       String paymentId = data.get("id").toString();
 
       // Diferenciar según el tipo de evento
-      if ("payment".equals(type) && action == null) {
+      if ("payment".equals(type) && ("payment.created".equals(action) || action == null)) {
         // Pago nuevo aprobado → generar voucher y enviar email
         log.info("Procesando webhook de pago para ID: {}", paymentId);
         updatePaymentStatusAndGenerateVoucher(paymentId);
@@ -93,7 +93,6 @@ public class PaymentWebhookController {
 
     } catch (Exception e) {
       log.error("Error al procesar webhook de MercadoPago", e);
-      // Siempre devolver 200 OK para que MercadoPago no reintente
       return ResponseEntity.ok(Map.of("status", "ERROR", "message", e.getMessage()));
     }
   }
@@ -206,19 +205,18 @@ public class PaymentWebhookController {
   private void processRefundConfirmation(String mercadoPagoPaymentId) {
     try {
       log.info("Procesando confirmación de refund para pago: {}", mercadoPagoPaymentId);
+      boolean hasApprovedRefund = paymentService.hasApprovedRefund(mercadoPagoPaymentId);
 
-      // 1. Consultar el estado actual del pago en MercadoPago
-      var paymentResponse = paymentService.checkExternalPaymentStatus(mercadoPagoPaymentId);
-      log.info("Estado del pago en MercadoPago: {}", paymentResponse.getStatus());
-
-      // 2. Verificar si el pago fue reembolsado
-      if (!"REFUNDED".equals(paymentResponse.getStatus())) {
-        log.info("Pago no está reembolsado, estado: {}. No se envía email de cancelación.",
-                paymentResponse.getStatus());
+      if (!hasApprovedRefund) {
+        log.info("No se encontraron refunds aprobados para el pago {}. No se envía email.",
+                mercadoPagoPaymentId);
         return;
       }
 
-      // 3. Buscar el pago en nuestra BD
+      log.info("Refund confirmado para pago ID: {}. Enviando email de cancelación.",
+              mercadoPagoPaymentId);
+
+      // 2. Buscar el pago en nuestra BD
       var paymentOpt = paymentRepository.findByExternalPaymentId(mercadoPagoPaymentId);
 
       if (paymentOpt.isEmpty()) {
@@ -228,7 +226,7 @@ public class PaymentWebhookController {
 
       PaymentEntity payment = paymentOpt.get();
 
-      // 4. Obtener el booking asociado
+      // 3. Obtener el booking asociado
       BookingEntity booking = payment.getBookingEntity();
 
       if (booking == null) {
@@ -236,16 +234,15 @@ public class PaymentWebhookController {
         return;
       }
 
-      // 5. Verificar que el booking esté cancelado
+      // 4. Verificar que el booking esté cancelado
       if (!BookingEntity.BookingStatus.CANCELLED.equals(booking.getStatus())) {
         log.warn("El booking {} no está cancelado, estado: {}",
                 booking.getBookingReference(), booking.getStatus());
         return;
       }
 
-      // 6. Enviar email de confirmación de cancelación
+      // 5. Enviar email de confirmación de cancelación
       sendCancellationEmail(booking, payment);
-
     } catch (Exception e) {
       log.error("Error al procesar confirmación de refund {}: {}",
               mercadoPagoPaymentId, e.getMessage(), e);

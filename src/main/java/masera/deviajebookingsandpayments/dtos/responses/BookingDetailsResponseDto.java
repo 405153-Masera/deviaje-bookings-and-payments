@@ -80,7 +80,7 @@ public class BookingDetailsResponseDto {
 
     private String departureDate;
 
-    private String arrivalDate;
+    private String returnDate;
 
     private Integer adults;
 

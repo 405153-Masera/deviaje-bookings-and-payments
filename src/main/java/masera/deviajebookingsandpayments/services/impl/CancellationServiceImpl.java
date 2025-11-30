@@ -12,6 +12,7 @@ import masera.deviajebookingsandpayments.entities.HotelBookingEntity;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.HotelBookingRepository;
 import masera.deviajebookingsandpayments.services.interfaces.CancellationService;
+import masera.deviajebookingsandpayments.services.interfaces.EmailService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,8 @@ public class CancellationServiceImpl implements CancellationService {
   private final HotelBookingRepository hotelBookingRepository;
 
   private final PaymentService paymentService;
+
+  private final EmailService emailService;
 
   private final HotelClient hotelClient;
 
@@ -94,6 +97,20 @@ public class CancellationServiceImpl implements CancellationService {
     if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
       log.info("Procesando reembolso de vuelo: {} {}", refundAmount, booking.getCurrency());
       paymentService.processRefundForBooking(booking.getId(), refundAmount);
+    } else {
+      try {
+        emailService.sendCancellationEmail(
+                booking.getEmail(),
+                booking.getBookingReference(),
+                booking.getHolderName(),
+                "FLIGHT",
+                BigDecimal.ZERO,
+                booking.getCurrency(),
+                booking.getCancelledAt()
+        );
+      } catch (Exception e) {
+        log.error(e.getMessage());
+      }
     }
 
     return CancelBookingResponseDto.builder()
@@ -142,6 +159,20 @@ public class CancellationServiceImpl implements CancellationService {
     if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
       log.info("Procesando reembolso de hotel: {} {}", refundAmount, booking.getCurrency());
       paymentService.processRefundForBooking(booking.getId(), refundAmount);
+    } else {
+      try {
+        emailService.sendCancellationEmail(
+                booking.getEmail(),
+                booking.getBookingReference(),
+                booking.getHolderName(),
+                "HOTEL",
+                BigDecimal.ZERO,
+                booking.getCurrency(),
+                booking.getCancelledAt()
+        );
+      } catch (Exception e) {
+        log.error(e.getMessage());
+      }
     }
 
     return CancelBookingResponseDto.builder()
@@ -189,6 +220,20 @@ public class CancellationServiceImpl implements CancellationService {
     if (totalRefund.compareTo(BigDecimal.ZERO) > 0) {
       log.info("Procesando reembolso de paquete: {} {}", totalRefund, booking.getCurrency());
       paymentService.processRefundForBooking(booking.getId(), totalRefund);
+    } else {
+      try {
+        emailService.sendCancellationEmail(
+                booking.getEmail(),
+                booking.getBookingReference(),
+                booking.getHolderName(),
+                "PACKAGE",
+                BigDecimal.ZERO,
+                booking.getCurrency(),
+                booking.getCancelledAt()
+        );
+      } catch (Exception e) {
+        log.error(e.getMessage());
+      }
     }
 
     return CancelBookingResponseDto.builder()

@@ -1,10 +1,17 @@
 package masera.deviajebookingsandpayments.services.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.html2pdf.HtmlConverter;
 import java.io.ByteArrayOutputStream;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import masera.deviajebookingsandpayments.dtos.bookings.flights.DepartureArrivalDto;
+import masera.deviajebookingsandpayments.dtos.bookings.flights.ItineraryDto;
+import masera.deviajebookingsandpayments.dtos.bookings.flights.SegmentDto;
 import masera.deviajebookingsandpayments.entities.BookingEntity;
 import masera.deviajebookingsandpayments.entities.FlightBookingEntity;
 import masera.deviajebookingsandpayments.entities.HotelBookingEntity;
@@ -22,8 +29,9 @@ public class VoucherServiceImpl implements VoucherService {
 
   private final BookingRepository bookingRepository;
 
+  private final ObjectMapper objectMapper;
+
   private static final String PRIMARY_COLOR = "#8B5CF6";
-  private static final String PRIMARY_LIGHT = "#A78BFA";
 
   @Override
   public byte[] generateVoucher(BookingEntity booking) throws Exception {
@@ -104,6 +112,13 @@ public class VoucherServiceImpl implements VoucherService {
    */
   private String buildFlightVoucherHtml(BookingEntity booking, FlightBookingEntity flight) {
     DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    boolean isRoundTrip = flight.getReturnDate() != null;
+
+    String formattedDepartureDate = formatFlightDateTime(flight.getDepartureDate());
+    String formattedReturnDate = isRoundTrip
+            ? formatFlightDateTime(flight.getReturnDate())
+            : null;
+    String itineraryDetailsHtml = buildItineraryDetailsHtml(flight.getItineraries());
 
     return "<!DOCTYPE html>"
             + "<html>"
@@ -132,25 +147,14 @@ public class VoucherServiceImpl implements VoucherService {
             + "<p><strong>Reservado por:</strong> " + booking.getHolderName() + "</p>"
             + "<p><strong>Fecha de reserva:</strong> "
             + booking.getCreatedDatetime().format(dateFormatter) + "</p>"
+            + "<p><strong>Fecha de salida:</strong> " + formattedDepartureDate + "</p>"
+            + (isRoundTrip
+            ? "<p><strong>Fecha de regreso:</strong> " + formattedReturnDate + "</p>"
+            : "")
             + "</div>"
 
-            // Flight details
-            + "<div class='info-section'>"
-            + "<h3>Código de Confirmación: " + flight.getExternalId() + "</h3>"
-            + "<div class='flight-info'>"
-            + "<div class='flight-column'>"
-            + "<p class='label'>Salida</p>"
-            + "<p class='value'>" + flight.getDepartureDate() + "</p>"
-            + "<p class='location'>" + flight.getOrigin() + "</p>"
-            + "</div>"
-            + "<div class='flight-column'>"
-            + "<p class='label'>Llegada</p>"
-            + "<p class='value'>" + (flight.getReturnDate() != null
-            ? flight.getReturnDate() : "N/A") + "</p>"
-            + "<p class='location'>" + flight.getDestination() + "</p>"
-            + "</div>"
-            + "</div>"
-            + "</div>"
+            // Itinerarios detallados
+            + itineraryDetailsHtml
 
             // Passenger details
             + "<div class='info-section'>"
@@ -234,13 +238,6 @@ public class VoucherServiceImpl implements VoucherService {
             + booking.getCreatedDatetime().format(dateFormatter) + "</p>"
             + "</div>"
 
-            // Hotel details
-            + "<div class='info-section'>"
-            + "<h3>Código Alojamiento: " + hotel.getExternalId() + "</h3>"
-            + "<h2>" + hotel.getHotelName() + "</h2>"
-            + "<p>" + hotel.getDestinationName() + ", " + hotel.getCountryName() + "</p>"
-            + "</div>"
-
             // Check-in/out dates
             + "<div class='info-section'>"
             + "<div class='hotel-dates'>"
@@ -304,10 +301,25 @@ public class VoucherServiceImpl implements VoucherService {
   /**
    * Construye el HTML para el voucher de paquete.
    */
+  /**
+   * Construye el HTML para el voucher de paquete.
+   */
   private String buildPackageVoucherHtml(BookingEntity booking,
                                          FlightBookingEntity flight,
                                          HotelBookingEntity hotel) {
     DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    // Determinar si es vuelo de ida y vuelta
+    boolean isRoundTrip = flight.getReturnDate() != null;
+
+    // Formatear fechas de vuelo
+    String formattedDepartureDate = formatFlightDateTime(flight.getDepartureDate());
+    String formattedReturnDate = isRoundTrip
+            ? formatFlightDateTime(flight.getReturnDate())
+            : null;
+
+    // Parsear itinerarios para mostrar detalles del vuelo
+    String itineraryDetailsHtml = buildItineraryDetailsHtml(flight.getItineraries());
 
     return "<!DOCTYPE html>"
             + "<html>"
@@ -341,27 +353,41 @@ public class VoucherServiceImpl implements VoucherService {
             // Flight section
             + "<div class='section-divider'>DETALLES DEL VUELO</div>"
             + "<div class='info-section'>"
-            + "<h3>Código de Confirmación: " + flight.getExternalId() + "</h3>"
-            + "<div class='flight-info'>"
-            + "<div class='flight-column'>"
-            + "<p class='label'>Salida</p>"
-            + "<p class='value'>" + flight.getDepartureDate() + "</p>"
-            + "<p class='location'>" + flight.getOrigin() + "</p>"
+            + "<p><strong>Origen:</strong> " + flight.getOrigin() + "</p>"
+            + "<p><strong>Destino:</strong> " + flight.getDestination() + "</p>"
+            + "<p><strong>Fecha de salida:</strong> " + formattedDepartureDate + "</p>"
+            + (isRoundTrip
+            ? "<p><strong>Fecha de regreso:</strong> " + formattedReturnDate + "</p>"
+            : "")
             + "</div>"
-            + "<div class='flight-column'>"
-            + "<p class='label'>Llegada</p>"
-            + "<p class='value'>" + (flight.getReturnDate() != null
-            ? flight.getReturnDate() : "N/A") + "</p>"
-            + "<p class='location'>" + flight.getDestination() + "</p>"
+
+            // Itinerarios detallados del vuelo
+            + itineraryDetailsHtml
+
+            // Passenger details
+            + "<div class='info-section'>"
+            + "<div class='details-row'>"
+            + "<div class='details-column'><strong>Pasajeros</strong><br/>"
+            + flight.getAdults() + " Adultos"
+            + (flight.getChildren() != null && flight.getChildren() > 0
+            ? ", " + flight.getChildren() + " Niños" : "")
+            + (flight.getInfants() != null && flight.getInfants() > 0
+            ? ", " + flight.getInfants() + " Infantes" : "")
             + "</div>"
+            + "<div class='details-column'><strong>Aerolínea</strong><br/>"
+            + (flight.getCarrier() != null ? flight.getCarrier() : "N/A") + "</div>"
             + "</div>"
             + "</div>"
 
             // Hotel section
             + "<div class='section-divider'>DETALLES DEL ALOJAMIENTO</div>"
             + "<div class='info-section'>"
-            + "<h3>Código Alojamiento: " + hotel.getExternalId() + "</h3>"
             + "<h2>" + hotel.getHotelName() + "</h2>"
+            + "<p>" + hotel.getDestinationName() + ", " + hotel.getCountryName() + "</p>"
+            + "</div>"
+
+            // Hotel dates
+            + "<div class='info-section'>"
             + "<div class='hotel-dates'>"
             + "<div class='date-column'>"
             + "<p class='label'>Check in</p>"
@@ -373,6 +399,20 @@ public class VoucherServiceImpl implements VoucherService {
             + "<p class='value'>" + hotel.getCheckOutDate().format(dateFormatter) + "</p>"
             + "<p class='time'>11:00HS</p>"
             + "</div>"
+            + "</div>"
+            + "</div>"
+
+            // Hotel room details
+            + "<div class='info-section'>"
+            + "<div class='details-row'>"
+            + "<div class='details-column'><strong>Habitaciones</strong><br/>"
+            + hotel.getNumberOfRooms() + " " + hotel.getRoomName() + "</div>"
+            + "<div class='details-column'><strong>Pasajeros</strong><br/>"
+            + hotel.getAdults() + " Adultos"
+            + (hotel.getChildren() > 0 ? ", " + hotel.getChildren() + " Niños" : "")
+            + "</div>"
+            + "<div class='details-column'><strong>Régimen de comida</strong><br/>"
+            + hotel.getBoardName() + "</div>"
             + "</div>"
             + "</div>"
 
@@ -480,6 +520,154 @@ public class VoucherServiceImpl implements VoucherService {
     } catch (Exception e) {
       log.error("Error al convertir HTML a PDF: {}", e.getMessage(), e);
       throw new Exception("Error al generar el PDF del voucher: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Formatea una fecha ISO a formato legible en español.
+   */
+  private String formatFlightDateTime(String isoDateTime) {
+    try {
+      LocalDateTime dateTime = LocalDateTime.parse(isoDateTime);
+      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm",
+              new java.util.Locale("es", "AR"));
+      return dateTime.format(formatter);
+    } catch (Exception e) {
+      return isoDateTime;
+    }
+  }
+
+  /**
+   * Construye el HTML de detalles del itinerario desde el JSON.
+   */
+  private String buildItineraryDetailsHtml(String itinerariesJson) {
+    if (itinerariesJson == null || itinerariesJson.isEmpty()) {
+      return "<div class='info-section'><p>Detalles del itinerario no disponibles</p></div>";
+    }
+
+    try {
+      List<ItineraryDto> itineraries = objectMapper.readValue(
+              itinerariesJson,
+              new TypeReference<>() {}
+      );
+
+      StringBuilder html = new StringBuilder();
+      html.append("<div class='info-section'><h3>Itinerarios</h3>");
+
+      for (int i = 0; i < itineraries.size(); i++) {
+        ItineraryDto itinerary = itineraries.get(i);
+        List<SegmentDto> segments = itinerary.getSegments();
+
+        // Calcular duración total del itinerario sumando los segmentos
+        String totalDuration = calculateTotalDuration(segments);
+
+        // Título del itinerario (Ida o Vuelta)
+        html.append("<h4>").append(i == 0 ? "Vuelo de Ida" : "Vuelo de Regreso").append("</h4>");
+        html.append("<p><strong>Duración total:</strong> ").append(totalDuration).append("</p>");
+
+        // Detalles de cada segmento
+        if (segments != null && !segments.isEmpty()) {
+          html.append("<table style='width: 100%; border-collapse: collapse; margin-top: 10px;'>");
+          html.append("<tr style='background-color: #f3f4f6;'>");
+          html.append("<th style='padding: 8px; text-align: left; "
+                  + "border: 1px solid #ddd;'>Salida</th>");
+          html.append("<th style='padding: 8px; text-align: left; "
+                  + "border: 1px solid #ddd;'>Llegada</th>");
+          html.append("<th style='padding: 8px; text-align: left; "
+                  + "border: 1px solid #ddd;'>Duración</th>");
+          html.append("</tr>");
+
+          for (SegmentDto segment : segments) {
+
+            html.append("<tr>");
+            DepartureArrivalDto departure = segment.getDeparture();
+            String departureTime = formatFlightDateTime(departure.getAt());
+            String departureCode = departure.getIataCode();
+            html.append("<td style='padding: 8px; border: 1px solid #ddd;'>")
+                    .append(departureCode).append("<br>").append(departureTime).append("</td>");
+
+            DepartureArrivalDto arrival = segment.getArrival();
+            String arrivalTime = formatFlightDateTime(arrival.getAt());
+            String arrivalCode = arrival.getIataCode();
+            html.append("<td style='padding: 8px; border: 1px solid #ddd;'>")
+                    .append(arrivalCode).append("<br>").append(arrivalTime).append("</td>");
+
+            String segmentDuration = segment.getDuration();
+            html.append("<td style='padding: 8px; border: 1px solid #ddd;'>")
+                    .append(formatDuration(segmentDuration)).append("</td>");
+
+            html.append("</tr>");
+          }
+          html.append("</table>");
+        }
+      }
+
+      html.append("</div>");
+      return html.toString();
+
+    } catch (Exception e) {
+      log.error("Error al parsear itinerarios: {}", e.getMessage(), e);
+      return "<div class='info-section'><p>Error al cargar detalles del itinerario</p></div>";
+    }
+  }
+
+  /**
+   * Calcula la duración total de un itinerario sumando las duraciones de todos los segmentos.
+   */
+  private String calculateTotalDuration(List<SegmentDto> segments) {
+    if (segments == null || segments.isEmpty()) {
+      return "N/A";
+    }
+
+    try {
+      long totalMinutes = 0;
+
+      for (SegmentDto segment : segments) {
+        if (segment.getDuration() != null) {
+          java.time.Duration d = java.time.Duration.parse(segment.getDuration());
+          totalMinutes += d.toMinutes();
+        }
+      }
+
+      long hours = totalMinutes / 60;
+      long minutes = totalMinutes % 60;
+
+      if (hours > 0 && minutes > 0) {
+        return hours + "h " + minutes + "m";
+      } else if (hours > 0) {
+        return hours + "h";
+      } else {
+        return minutes + "m";
+      }
+    } catch (Exception e) {
+      log.error("Error al calcular duración total: {}", e.getMessage());
+      return "N/A";
+    }
+  }
+
+  /**
+   * Formatea una duración ISO 8601 (PT2H30M) a formato legible (2 h 30 m).
+   */
+  private String formatDuration(String duration) {
+    if (duration == null || duration.isEmpty()) {
+      return "N/A";
+    }
+
+    try {
+      // Parsear formato ISO 8601 duration (PT2H30M)
+      java.time.Duration d = java.time.Duration.parse(duration);
+      long hours = d.toHours();
+      long minutes = d.toMinutes() % 60;
+
+      if (hours > 0 && minutes > 0) {
+        return hours + "h " + minutes + "m";
+      } else if (hours > 0) {
+        return hours + "h";
+      } else {
+        return minutes + "m";
+      }
+    } catch (Exception e) {
+      return duration; // Fallback
     }
   }
 }

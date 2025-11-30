@@ -250,6 +250,9 @@ public class EmailServiceImpl implements EmailService {
    * Construye el contenido HTML del email del voucher.
    */
   private String buildVoucherEmailContent(String bookingReference, String holderName) {
+    // URL para que invitados puedan ver/cancelar la reserva
+    String bookingUrl = "https://localhost:4200/bookings/" + bookingReference + "/details";
+
     return "<html>"
             + "<head>"
             + "<style>"
@@ -262,6 +265,8 @@ public class EmailServiceImpl implements EmailService {
             + "border-radius: 5px; margin: 20px 0; }"
             + ".booking-code { font-size: 24px; font-weight: bold; "
             + "color: #8B5CF6; text-align: center; }"
+            + ".booking-link { display: block; text-align: center; margin: 20px 0; }"
+            + ".booking-link a { color: #8B5CF6; text-decoration: none; font-weight: bold; }"
             + ".footer { margin-top: 30px; font-size: 12px; "
             + "color: #666; text-align: center; }"
             + "</style>"
@@ -280,11 +285,15 @@ public class EmailServiceImpl implements EmailService {
             + "<p style='margin: 0; text-align: center;'>Código de Reserva</p>"
             + "<p class='booking-code'>" + bookingReference + "</p>"
             + "</div>"
+            + "<div class='booking-link'>"
+            + "<p>Para ver los detalles de tu reserva o gestionar cambios, accede a:</p>"
+            + "<a href='" + bookingUrl + "'>" + bookingUrl + "</a>"
+            + "</div>"
             + "<p><strong>Importante:</strong></p>"
             + "<ul>"
             + "<li>Guarda este voucher para presentarlo en tu check-in</li>"
             + "<li>Verifica que todos los datos sean correctos</li>"
-            + "<li>Revisa las políticas de cancelación adjuntas</li>"
+            + "<li>Revisa las políticas de cancelación en la web</li>"
             + "</ul>"
             + "<p>Si tienes alguna consulta, no dudes en contactarnos.</p>"
             + "<p>¡Que tengas un excelente viaje!</p>"

@@ -301,8 +301,10 @@ public class PaymentServiceImpl implements PaymentService {
 
       refundRepository.save(refundEntity);
     } catch (MPException e) {
+      log.error(e.getMessage());
       throw errorHandler.handleMercadoPagoError(e);
     } catch (MPApiException e) {
+      log.error(e.getMessage());
       throw errorHandler.handleMercadoPagoError(e);
     }
 
@@ -398,6 +400,49 @@ public class PaymentServiceImpl implements PaymentService {
               500,
               e
       );
+    }
+  }
+
+  /**
+   * Verifica si un pago tiene refunds aprobados consultando directamente a MercadoPago.
+   *
+   * @param externalPaymentId ID del pago en MercadoPago
+   * @return true si tiene al menos un refund aprobado, false caso contrario
+   */
+  @Override
+  public boolean hasApprovedRefund(String externalPaymentId) {
+    log.info("Verificando refunds para pago externo ID: {}", externalPaymentId);
+
+    try {
+      initMercadoPagoConfig();
+      PaymentClient paymentClient = new PaymentClient();
+
+      Long mpPaymentId = Long.parseLong(externalPaymentId);
+      Payment mpPayment = paymentClient.get(mpPaymentId);
+
+      if (mpPayment.getRefunds() != null && !mpPayment.getRefunds().isEmpty()) {
+        for (PaymentRefund refund : mpPayment.getRefunds()) {
+          if ("approved".equalsIgnoreCase(refund.getStatus())) {
+            log.info("Refund aprobado encontrado para pago {}: ID {}, monto {}",
+                    externalPaymentId, refund.getId(), refund.getAmount());
+            return true;
+          }
+        }
+      }
+
+      String statusDetail = mpPayment.getStatusDetail();
+      if ("refunded".equalsIgnoreCase(statusDetail)
+              || "partially_refunded".equalsIgnoreCase(statusDetail)) {
+        log.info("Pago {} tiene status_detail: {}", externalPaymentId, statusDetail);
+        return true;
+      }
+
+      return false;
+    } catch (Exception e) {
+
+      log.error("Error inesperado al verificar refunds del pago {}: {}",
+              externalPaymentId, e.getMessage());
+      return false;
     }
   }
 

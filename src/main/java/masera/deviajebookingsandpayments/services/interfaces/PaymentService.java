@@ -50,4 +50,12 @@ public interface PaymentService {
    * @return estado actualizado del pago
    */
   PaymentResponseDto checkExternalPaymentStatus(String externalPaymentId);
+
+  /**
+   * Verifica si un pago tiene refunds aprobados consultando directamente a MercadoPago.
+   *
+   * @param externalPaymentId ID del pago en MercadoPago
+   * @return true si tiene al menos un refund aprobado, false caso contrario
+   */
+  boolean hasApprovedRefund(String externalPaymentId);
 }
