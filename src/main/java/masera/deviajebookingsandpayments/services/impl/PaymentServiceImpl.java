@@ -25,6 +25,7 @@ import masera.deviajebookingsandpayments.exceptions.MercadoPagoException;
 import masera.deviajebookingsandpayments.repositories.BookingRepository;
 import masera.deviajebookingsandpayments.repositories.PaymentRepository;
 import masera.deviajebookingsandpayments.repositories.RefundRepository;
+import masera.deviajebookingsandpayments.services.interfaces.EmailService;
 import masera.deviajebookingsandpayments.services.interfaces.PaymentService;
 import masera.deviajebookingsandpayments.utils.ErrorHandler;
 import org.springframework.http.HttpStatus;
@@ -49,6 +50,8 @@ public class PaymentServiceImpl implements PaymentService {
   private final PagoConfig pagoConfig;
 
   private final ErrorHandler errorHandler;
+
+  private final EmailService emailService;
 
   /**
    * Inicializa la configuración de Mercado Pago.
@@ -111,7 +114,7 @@ public class PaymentServiceImpl implements PaymentService {
         payerBuilder.identification(identification);
       }
     }
-
+    log.info(paymentRequest.toString());
     PaymentCreateRequest.PaymentCreateRequestBuilder paymentBuilder = PaymentCreateRequest.builder()
             .transactionAmount(paymentRequest.getAmount())
             .token(paymentRequest.getPaymentToken())
@@ -151,7 +154,8 @@ public class PaymentServiceImpl implements PaymentService {
     PaymentEntity savedPaymentEntity =
             paymentRepository.save(paymentEntity);
 
-    if ("approved".equals(createdPayment.getStatus())) {
+    if ("approved".equals(createdPayment.getStatus())
+            || "in_process".equals(createdPayment.getStatus())) {
       return PaymentResponseDto.approved(
               savedPaymentEntity.getId(),
               createdPayment.getId().toString(),
@@ -300,15 +304,37 @@ public class PaymentServiceImpl implements PaymentService {
               .build();
 
       refundRepository.save(refundEntity);
-    } catch (MPException e) {
+    } catch (MPException | MPApiException e) {
       log.error(e.getMessage());
-      throw errorHandler.handleMercadoPagoError(e);
-    } catch (MPApiException e) {
-      log.error(e.getMessage());
-      throw errorHandler.handleMercadoPagoError(e);
+      sendCancellationEmailFallback(booking, refundAmount);
     }
 
     log.info("Reembolso procesado exitosamente para booking ID: {}", bookingId);
+  }
+
+  /**
+   * Envía email de cancelación como plan de respaldo cuando falla MercadoPago.
+   */
+  private void sendCancellationEmailFallback(BookingEntity booking, BigDecimal refundAmount) {
+    try {
+      log.info("Enviando email de cancelación como respaldo para booking: {}",
+              booking.getBookingReference());
+
+      // Necesitas inyectar EmailService en el constructor
+      emailService.sendCancellationEmail(
+              booking.getEmail(),
+              booking.getBookingReference(),
+              booking.getHolderName(),
+              booking.getType().name(),
+              refundAmount,
+              booking.getCurrency(),
+              booking.getCancelledAt()
+      );
+
+      log.info("Email de cancelación enviado exitosamente como respaldo");
+    } catch (Exception e) {
+      log.error("Error al enviar email de cancelación de respaldo: {}", e.getMessage());
+    }
   }
 
   @Override
